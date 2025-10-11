@@ -1,0 +1,15 @@
+{
+  "name": "gpt5-terminal-agent",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "GPT-5 Terminal Agent for Ubuntu",
+  "main": "agent.js",
+  "dependencies": {
+    "@azure/identity": "latest",
+    "dotenv": "^17.2.3",
+    "openai": "latest"
+  },
+  "scripts": {
+    "start": "node agent.js"
+  }
+}
