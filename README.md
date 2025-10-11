@@ -40,19 +40,38 @@ This agent is explicitly built for ethical / white-hat security engagements — 
 
 # Key Features
 
-Terminal Tool Integration — Run shell commands, inspect files, and interact with the host system from the agent.
+## Core Capabilities
 
-AI-driven Analysis — The agent runs an AI assistant configured with security-focused prompts and methodologies (OWASP Top 10, CWE mapping, vulnerability triage).
+Most basic explanation: Terminal Tool Integration — Run shell commands, inspect files, and interact with the host system from the agent.
 
-Enhanced Terminal Formatting — Markdown → styled terminal output (headers, code blocks, severity coloring, file / IP highlighting).
+### Penetration Testing & Security Assessment
+- **Web Application Security**: OWASP Top 10 testing, SQL injection, XSS, CSRF analysis
+- **Network Reconnaissance**: Port scanning, service enumeration, network mapping
+- **Vulnerability Scanning**: Automated and manual vulnerability assessment
+- **System Exploitation**: Ethical exploitation techniques and proof-of-concept development
+- **Security Tool Integration**: Seamless integration with Nmap, Burp Suite, Metasploit, OWASP ZAP, and more
 
-Comprehensive Logging — Live log window and persistent log files for auditability and reporting.
+### System & Infrastructure Analysis
+- **Local System Scanning**: File system analysis, privilege escalation vectors, system hardening assessment
+- **Network Discovery**: Local network mapping, device enumeration, service discovery
+- **Configuration Analysis**: Security configuration review, compliance checking
+- **Log Analysis**: Security event correlation, anomaly detection, forensic analysis
+- **Container Security**: Docker/Kubernetes security assessment and analysis
 
-Tooling Hooks — Built-in functions for execute_command, read_file, write_file, list_directory, and get_cwd.
+### Advanced Web Security Testing
+- **API Security Testing**: REST/GraphQL API vulnerability assessment
+- **Authentication Bypass**: Session management testing, authentication flow analysis
+- **Authorization Testing**: Access control verification, privilege escalation testing
+- **Input Validation**: Comprehensive input sanitization and validation testing
+- **Business Logic Flaws**: Complex workflow and business rule vulnerability identification
 
-Responsible Disclosure Workflow — Prompts and output structure emphasize verification, impact analysis, and remediation (not exploitation).
-
-Configurable Behavior — Toggle formatting, set Azure/OpenAI model details, and control agent behavior via environment variables.
+### Tool Arsenal Integration
+- **Configurable Behavior**: Toggle formatting, set Azure/OpenAI model details, and control agent behavior via environment variables.
+- **Command Line Tools**: Execute any security tool available on your system
+- **Custom Scripts**: Run Python, Bash, PowerShell security scripts
+- **Security Frameworks**: Integration with popular security testing frameworks
+- **Reporting Tools**: Automated report generation and vulnerability documentation
+- **CI/CD Security**: DevSecOps integration and pipeline security testing
 
 # Terminal Formatting & UX
 
@@ -74,7 +93,15 @@ Read this before using the agent.
 
 Authorization Required. Only run this software against systems and networks you own or against which you have explicit, documented authorization (signed scope of work, bug bounty program approval, or written permission).
 
-No Unauthorized Scanning. Do not target third-party systems without permission. Unauthorized scanning and exploitation can be illegal and damaging.
+### Authorized Use Cases
+- Testing systems you own or have explicit permission to test
+- Authorized penetration testing engagements
+- Security research in controlled environments
+- Educational and training purposes
+- Bug bounty programs with proper scope
+- Internal security assessments
+
+**Do not target third-party systems without permission. Unauthorized scanning and exploitation can be illegal and damaging**
 
 Impact Awareness. Some commands or scans may degrade or disrupt systems (high volume scans, destructive payloads, commands that modify configuration). The agent is intended to warn before destructive actions — heed those warnings.
 
@@ -84,7 +111,7 @@ Responsible Disclosure. If you discover vulnerabilities, follow a responsible di
 
 Compliance. Ensure your activities comply with applicable laws, contracts, and organizational policies.
 
-This README and the agent explicitly promote ethical, permissioned security work. Use responsibly.
+This README explicitly promotes ethical, permissioned security work. Use responsibly.
 
 # Quick Start
 
@@ -165,23 +192,37 @@ Always secure logs after an engagement — they may contain sensitive outputs.
 
 # Example Workflows
 
-Website Scanning
-Ask the agent to perform a scan of example.com.
+### Web Application Security Testing
+```bash
+> "Perform a comprehensive security assessment of https://example.com"
+> "Test this login form for SQL injection and XSS vulnerabilities"
+> "Analyze the session management implementation"
+```
 
-Inventory & Discovery 
-Ask the agent to enumerate services, parse configuration files, and summarize likely exposure points.
+### Network Security Assessment
+```bash
+> "Map my local network and identify all active hosts"
+> "Scan 192.168.1.0/24 for vulnerable services"
+> "Check for default credentials on discovered services"
+```
 
-Static File/Code Review
-Have the agent read project files and provide a risk-graded review (credential leakage, insecure config flags, dependency issues).
+### System Security Analysis
+```bash
+> "Audit my Linux system for security misconfigurations"
+> "Check for SUID binaries that could be exploited"
+> "Analyze running processes for suspicious activity"
+```
 
-Certificate and TLS Checks
-Request checks of TLS configuration and certificate validity
-
-Log Analysis
-Point the agent at log files and ask for suspicious patterns, anomalous login attempts, or misconfigurations.
-
-Report Generation
-Ask the agent to create a templated vulnerability report containing findings, severity, impact, remediation steps, and references.
+### Compliance & Hardening
+```bash
+> "Generate a CIS benchmark compliance report"
+> "Review my Docker containers for security best practices"
+> "Assess my system against NIST cybersecurity framework"
+```
+As well as:
+- Log Analysis
+- Report Generation
+- Whatever else you can think of, within reason.
 
 The agent will warn before running any command that it detects as potentially destructive. It is configured to require confirmation for high-impact operations. 
 
