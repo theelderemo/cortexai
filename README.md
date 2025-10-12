@@ -7,7 +7,7 @@ Of course. Here is the updated, professional README.md for your CortexAI project
 An intelligent terminal agent powered by AI for ethical security testing and vulnerability analysis with integrated project management, scope tracking, and evidence collection.
 
 > [\!NOTE]
-> CortexAI now includes a comprehensive Project Management Engine for structured penetration testing engagements. See [PROJECT MANAGEMENT.md](PROJECT_MANAGEMENT.md) for detailed documentation.
+> For detailed documentation, see [documentation](https://github.com/theelderemo/cortexai/tree/main/documentation)
 
 # Table of Contents
 
