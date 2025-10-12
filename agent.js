@@ -11,6 +11,7 @@ import http from "http";
 import { URL } from "url";
 import puppeteer from "puppeteer";
 import { ProjectStartup } from "./lib/ProjectStartup.js";
+import { PluginManager } from "./lib/PluginManager.js";
 
 // Load environment variables
 dotenv.config();
@@ -326,6 +327,12 @@ const apiVersion = process.env.AZURE_API_VERSION;
 
 // Terminal formatting configuration
 const ENABLE_FORMATTING = process.env.AGENT_DISABLE_FORMATTING !== 'true';
+
+// Plugin system configuration
+const ENABLE_PLUGINS = process.env.ENABLE_PLUGINS !== 'false'; // Enabled by default
+const PLUGIN_DIRS = process.env.PLUGIN_DIRS 
+  ? process.env.PLUGIN_DIRS.split(',').map(d => d.trim())
+  : ['./plugins/core', './plugins/custom', './plugins/examples'];
 
 const options = { endpoint, apiKey, deployment, apiVersion };
 const client = new AzureOpenAI(options);
@@ -1069,6 +1076,22 @@ const tools = [
     }
   }
 ];
+
+// ============ Plugin Tool Integration ============
+/**
+ * Get all available tools (core + plugins)
+ */
+function getAllTools() {
+  let allTools = [...tools]; // Start with core tools
+  
+  // Add plugin tools if plugin manager is initialized
+  if (pluginManager) {
+    const pluginTools = pluginManager.getTools();
+    allTools = allTools.concat(pluginTools);
+  }
+  
+  return allTools;
+}
 
 // ============ Tool Implementations ============
 async function executeCommand(command, workingDirectory = process.cwd()) {
@@ -2469,11 +2492,24 @@ async function callTool(toolName, args) {
         break;
         
       default:
-        await logger.logVerbose('ERROR', 'Unknown Tool Called', {
-          'Tool Name': toolName,
-          'Arguments': args
-        });
-        result = JSON.stringify({ success: false, error: "Unknown tool" });
+        // Check if this is a plugin tool
+        if (pluginManager && pluginManager.hasHandler(toolName)) {
+          await logger.logVerbose('PLUGIN_TOOL_START', 'Calling Plugin Tool', {
+            'Tool Name': toolName,
+            'Arguments': args
+          });
+          result = await pluginManager.callHandler(toolName, args);
+          await logger.logVerbose('PLUGIN_TOOL_COMPLETE', 'Plugin Tool Complete', {
+            'Tool Name': toolName,
+            'Result': JSON.parse(result)
+          });
+        } else {
+          await logger.logVerbose('ERROR', 'Unknown Tool Called', {
+            'Tool Name': toolName,
+            'Arguments': args
+          });
+          result = JSON.stringify({ success: false, error: "Unknown tool" });
+        }
     }
     
     // Log successful tool completion
@@ -2939,7 +2975,7 @@ async function processMessage(userMessage) {
     const response = await client.chat.completions.create({
       model: modelName,
       messages: currentMessages,
-      tools: tools,
+      tools: getAllTools(),
       tool_choice: "auto",
       max_tokens: 16384,
       temperature: 0.7,
@@ -3003,6 +3039,7 @@ let projectStartup = null;
 let projectManager = null;
 let scopeManager = null;
 let issueManager = null;
+let pluginManager = null;
 
 // ============ Interactive Terminal ============
 async function startInteractiveMode() {
@@ -3010,6 +3047,25 @@ async function startInteractiveMode() {
   console.log("║                    CortexAI Agent                          ║");
   console.log("║              Penetration Testing Assistant                 ║");
   console.log("╚════════════════════════════════════════════════════════════╝");
+
+  // Initialize plugin system
+  if (ENABLE_PLUGINS) {
+    try {
+      pluginManager = new PluginManager(PLUGIN_DIRS);
+      await pluginManager.initialize();
+      
+      const stats = pluginManager.getStats();
+      if (stats.totalPlugins > 0) {
+        console.log(`\n🔌 Loaded ${stats.totalPlugins} plugin(s) with ${stats.totalTools} tool(s)`);
+        stats.plugins.forEach(p => {
+          console.log(`   • ${p.name} v${p.version} (${p.toolCount} tool${p.toolCount !== 1 ? 's' : ''})`);
+        });
+      }
+    } catch (error) {
+      console.error("⚠️  Error initializing plugins:", error.message);
+      console.log("   Continuing without plugins...");
+    }
+  }
 
   // Check for skip project management flag
   const skipProjectManagement = process.argv.includes('--skip-projects');
