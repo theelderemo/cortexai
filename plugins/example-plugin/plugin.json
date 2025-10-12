@@ -1,0 +1,12 @@
+{
+  "name": "example-plugin",
+  "version": "1.0.0",
+  "author": "CortexAI Team",
+  "description": "Example plugin demonstrating the plugin system with sample tools",
+  "main": "index.js",
+  "tools": [
+    "base64_encode",
+    "base64_decode",
+    "hash_text"
+  ]
+}

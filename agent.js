@@ -11,11 +11,17 @@ import http from "http";
 import { URL } from "url";
 import puppeteer from "puppeteer";
 import { ProjectStartup } from "./lib/ProjectStartup.js";
+import { ToolRegistry } from "./lib/ToolRegistry.js";
+import { PluginLoader } from "./lib/PluginLoader.js";
 
 // Load environment variables
 dotenv.config();
 
 const execAsync = promisify(exec);
+
+// ============ Plugin System Initialization ============
+const toolRegistry = new ToolRegistry();
+const pluginLoader = new PluginLoader(toolRegistry);
 
 // ============ Terminal Formatting System ============
 class TerminalFormatter {
@@ -537,8 +543,11 @@ Working mode: Security analysis with project management and comprehensive tracki
 // Initialize messages array (will be updated with dynamic system prompt)
 const messages = [];
 
-// ============ Tool Definitions ============
-const tools = [
+// ============ Core Tool Definitions ============
+// Core tool definitions are registered with the ToolRegistry at startup
+// This keeps the tools array dynamic and allows plugins to extend it
+
+const coreToolDefinitions = [
   {
     type: "function",
     function: {
@@ -2186,6 +2195,87 @@ async function probeApiEndpoints(baseUrl, customPaths = null) {
   }
 }
 
+// ============ Core Tools Registration ============
+/**
+ * Register all core tool definitions with the ToolRegistry
+ * This function creates a mapping between tool names and their handlers
+ */
+function registerCoreTools() {
+  console.log('\n🔧 Registering core tools...');
+  
+  // Map tool names to their handler functions
+  const coreToolHandlers = {
+    'execute_command': executeCommand,
+    'read_file': readFile,
+    'write_file': writeFile,
+    'list_directory': listDirectory,
+    'get_cwd': getCurrentWorkingDirectory,
+    'web_request': makeWebRequest,
+    'web_search': searchWeb,
+    'browse_website': browseWebsite,
+    'analyze_javascript': analyzeJavaScript,
+    'probe_api_endpoints': probeApiEndpoints,
+    'project_create': handleProjectCreate,
+    'project_load': handleProjectLoad,
+    'project_list': handleProjectList,
+    'project_status': handleProjectStatus,
+    'scope_add': handleScopeAdd,
+    'scope_list': handleScopeList,
+    'sitemap_view': handleSitemapView,
+    'discover_content': handleContentDiscovery,
+    'vuln_log': handleVulnLog,
+    'vuln_list': handleVulnList,
+    'vuln_update': handleVulnUpdate,
+    'evidence_store': handleEvidenceStore,
+    'database_viewer': handleDatabaseViewer
+  };
+
+  // Register each core tool
+  for (const toolDef of coreToolDefinitions) {
+    const toolName = toolDef.function.name;
+    const handler = coreToolHandlers[toolName];
+    
+    if (!handler) {
+      console.warn(`⚠️  No handler found for core tool: ${toolName}`);
+      continue;
+    }
+    
+    // Wrap handler to accept args object and handle the specific parameter names
+    const wrappedHandler = async (args) => {
+      // Call the original handler with the appropriate parameters
+      switch (toolName) {
+        case 'execute_command':
+          return await handler(args.command, args.working_directory);
+        case 'read_file':
+          return await handler(args.file_path);
+        case 'write_file':
+          return await handler(args.file_path, args.content);
+        case 'list_directory':
+          return await handler(args.directory_path);
+        case 'get_cwd':
+          return await handler();
+        case 'web_request':
+          return await handler(args.url, args.method, args.headers, args.data, args.follow_redirects);
+        case 'web_search':
+          return await handler(args.query, args.num_results);
+        case 'browse_website':
+          return await handler(args.url, args.extract_links, args.extract_forms, args.extract_scripts, args.user_agent);
+        case 'analyze_javascript':
+          return await handler(args.url, args.search_patterns);
+        case 'probe_api_endpoints':
+          return await handler(args.base_url, args.paths);
+        default:
+          // For project management and other tools that already accept args object
+          return await handler(args);
+      }
+    };
+    
+    toolRegistry.register(toolDef, wrappedHandler);
+  }
+  
+  console.log(`✅ Registered ${coreToolDefinitions.length} core tools\n`);
+}
+
 // ============ Tool Dispatcher ============
 async function callTool(toolName, args) {
   const startTime = Date.now();
@@ -2202,278 +2292,24 @@ async function callTool(toolName, args) {
   
   let result;
   try {
-    switch (toolName) {
-      case "execute_command":
-        await logger.logVerbose('COMMAND_START', 'Executing Command', {
-          'Command': args.command,
-          'Working Directory': args.working_directory || process.cwd()
-        });
-        result = await executeCommand(args.command, args.working_directory);
-        const cmdResult = JSON.parse(result);
-        await logger.logCommandExecution(args.command, args.working_directory || process.cwd(), cmdResult);
-        break;
-        
-      case "read_file":
-        await logger.logVerbose('FILE_READ_START', 'Reading File', {
-          'File Path': args.file_path
-        });
-        result = await readFile(args.file_path);
-        const readResult = JSON.parse(result);
-        await logger.logVerbose('FILE_READ_COMPLETE', 'File Read Complete', {
-          'File Path': args.file_path,
-          'Success': readResult.success,
-          'File Size': readResult.size || 'N/A',
-          'Content Preview': readResult.content ? readResult.content.substring(0, 200) + '...' : 'N/A'
-        });
-        break;
-        
-      case "write_file":
-        await logger.logVerbose('FILE_WRITE_START', 'Writing File', {
-          'File Path': args.file_path,
-          'Content Length': args.content?.length || 0,
-          'Content Preview': args.content ? args.content.substring(0, 200) + '...' : ''
-        });
-        result = await writeFile(args.file_path, args.content);
-        const writeResult = JSON.parse(result);
-        await logger.logVerbose('FILE_WRITE_COMPLETE', 'File Write Complete', {
-          'File Path': args.file_path,
-          'Success': writeResult.success,
-          'Bytes Written': writeResult.bytes_written || 'N/A'
-        });
-        break;
-        
-      case "list_directory":
-        await logger.logVerbose('DIRECTORY_LIST_START', 'Listing Directory', {
-          'Directory Path': args.directory_path || '.'
-        });
-        result = await listDirectory(args.directory_path);
-        const listResult = JSON.parse(result);
-        await logger.logVerbose('DIRECTORY_LIST_COMPLETE', 'Directory Listing Complete', {
-          'Directory Path': args.directory_path || '.',
-          'Success': listResult.success,
-          'Entry Count': listResult.entries?.length || 0,
-          'Entries': listResult.entries || []
-        });
-        break;
-        
-      case "get_cwd":
-        await logger.logVerbose('GET_CWD', 'Getting Current Working Directory', {});
-        result = getCurrentWorkingDirectory();
-        const cwdResult = JSON.parse(result);
-        await logger.logVerbose('GET_CWD_RESULT', 'Current Working Directory', {
-          'CWD': cwdResult.cwd
-        });
-        break;
-        
-      case "web_request":
-        await logger.logVerbose('WEB_REQUEST_START', 'Making Web Request', {
-          'Method': args.method || 'GET',
-          'URL': args.url,
-          'Headers': args.headers || {},
-          'Data': args.data || null,
-          'Follow Redirects': args.follow_redirects !== false
-        });
-        result = await makeWebRequest(args.url, args.method, args.headers, args.data, args.follow_redirects);
-        const webResult = JSON.parse(result);
-        await logger.logWebRequest(args.method || 'GET', args.url, args.headers || {}, webResult);
-        break;
-        
-      case "web_search":
-        await logger.logVerbose('WEB_SEARCH_START', 'Searching Web', {
-          'Query': args.query,
-          'Number of Results': args.num_results || 5
-        });
-        result = await searchWeb(args.query, args.num_results);
-        const searchResult = JSON.parse(result);
-        await logger.logVerbose('WEB_SEARCH_COMPLETE', 'Web Search Complete', {
-          'Query': args.query,
-          'Success': searchResult.success,
-          'Results Found': searchResult.total_results || 0,
-          'Results': searchResult.results || []
-        });
-        break;
-        
-      case "browse_website":
-        await logger.logVerbose('BROWSE_WEBSITE_START', 'Browsing Website', {
-          'URL': args.url,
-          'Extract Links': args.extract_links || false,
-          'Extract Forms': args.extract_forms || false,
-          'Extract Scripts': args.extract_scripts || false,
-          'User Agent': args.user_agent || 'default'
-        });
-        result = await browseWebsite(args.url, args.extract_links, args.extract_forms, args.extract_scripts, args.user_agent);
-        const browseResult = JSON.parse(result);
-        await logger.logVerbose('BROWSE_WEBSITE_COMPLETE', 'Website Browse Complete', {
-          'URL': args.url,
-          'Success': browseResult.success,
-          'Status Code': browseResult.status_code || 'N/A',
-          'Links Found': browseResult.links?.length || 0,
-          'Forms Found': browseResult.forms?.length || 0,
-          'Scripts Found': browseResult.scripts?.length || 0,
-          'Title': browseResult.title || 'N/A'
-        });
-        break;
-        
-      case "analyze_javascript":
-        await logger.logVerbose('JS_ANALYSIS_START', 'Analyzing JavaScript', {
-          'URL': args.url,
-          'Search Patterns': args.search_patterns || 'default'
-        });
-        result = await analyzeJavaScript(args.url, args.search_patterns);
-        const jsResult = JSON.parse(result);
-        await logger.logVerbose('JS_ANALYSIS_COMPLETE', 'JavaScript Analysis Complete', {
-          'URL': args.url,
-          'Success': jsResult.success,
-          'Endpoints Found': jsResult.endpoints?.length || 0
-        });
-        break;
-        
-      case "probe_api_endpoints":
-        await logger.logVerbose('API_PROBE_START', 'Probing API Endpoints', {
-          'Base URL': args.base_url,
-          'Custom Paths': args.paths || 'using defaults'
-        });
-        result = await probeApiEndpoints(args.base_url, args.paths);
-        const probeResult = JSON.parse(result);
-        await logger.logVerbose('API_PROBE_COMPLETE', 'API Endpoint Probe Complete', {
-          'Base URL': args.base_url,
-          'Success': probeResult.success,
-          'Paths Tested': probeResult.total_paths_tested || 0,
-          'Accessible Endpoints': probeResult.accessible_endpoints || 0,
-          'Likely API Endpoints': probeResult.likely_api_endpoints || 0
-        });
-        break;
-        
-      case "project_create":
-        await logger.logVerbose('PROJECT_CREATE_START', 'Creating Project', {
-          'Project Name': args.project_name,
-          'Target': args.target,
-          'Description': args.description || 'N/A'
-        });
-        result = await handleProjectCreate(args);
-        await logger.logVerbose('PROJECT_CREATE_COMPLETE', 'Project Creation Complete', {
-          'Project Name': args.project_name,
-          'Result': JSON.parse(result)
-        });
-        break;
-        
-      case "project_load":
-        await logger.logVerbose('PROJECT_LOAD_START', 'Loading Project', {
-          'Project Name': args.project_name
-        });
-        result = await handleProjectLoad(args);
-        await logger.logVerbose('PROJECT_LOAD_COMPLETE', 'Project Load Complete', {
-          'Project Name': args.project_name,
-          'Result': JSON.parse(result)
-        });
-        break;
-        
-      case "project_list":
-        await logger.logVerbose('PROJECT_LIST', 'Listing Projects', {});
-        result = await handleProjectList();
-        break;
-        
-      case "project_status":
-        await logger.logVerbose('PROJECT_STATUS', 'Getting Project Status', {});
-        result = await handleProjectStatus();
-        break;
-        
-      case "scope_add":
-        await logger.logVerbose('SCOPE_ADD_START', 'Adding Scope Rule', {
-          'Pattern': args.pattern,
-          'Type': args.type
-        });
-        result = await handleScopeAdd(args);
-        await logger.logVerbose('SCOPE_ADD_COMPLETE', 'Scope Rule Added', {
-          'Pattern': args.pattern,
-          'Result': JSON.parse(result)
-        });
-        break;
-        
-      case "scope_list":
-        await logger.logVerbose('SCOPE_LIST', 'Listing Scope Rules', {});
-        result = await handleScopeList();
-        break;
-        
-      case "sitemap_view":
-        await logger.logVerbose('SITEMAP_VIEW', 'Viewing Site Map', {});
-        result = await handleSitemapView();
-        break;
-        
-      case "discover_content":
-        await logger.logVerbose('CONTENT_DISCOVERY_START', 'Starting Content Discovery', {
-          'Base URL': args.base_url,
-          'Wordlist': args.wordlist || 'default',
-          'Extensions': args.extensions || 'default'
-        });
-        result = await handleContentDiscovery(args);
-        const discoverResult = JSON.parse(result);
-        await logger.logVerbose('CONTENT_DISCOVERY_COMPLETE', 'Content Discovery Complete', {
-          'Base URL': args.base_url,
-          'Success': discoverResult.success,
-          'Discovered Paths': discoverResult.discovered?.length || 0
-        });
-        break;
-        
-      case "vuln_log":
-        await logger.logVerbose('VULN_LOG_START', 'Logging Vulnerability', {
-          'Title': args.title,
-          'Severity': args.severity,
-          'Type': args.vulnerability_type
-        });
-        result = await handleVulnLog(args);
-        await logger.logVerbose('VULN_LOG_COMPLETE', 'Vulnerability Logged', {
-          'Title': args.title,
-          'Result': JSON.parse(result)
-        });
-        break;
-        
-      case "vuln_list":
-        await logger.logVerbose('VULN_LIST', 'Listing Vulnerabilities', {
-          'Severity Filter': args.severity || 'none',
-          'Status Filter': args.status || 'none'
-        });
-        result = await handleVulnList(args);
-        break;
-        
-      case "vuln_update":
-        await logger.logVerbose('VULN_UPDATE_START', 'Updating Vulnerability', {
-          'Vulnerability ID': args.vuln_id,
-          'New Status': args.status,
-          'Notes': args.notes || 'N/A'
-        });
-        result = await handleVulnUpdate(args);
-        await logger.logVerbose('VULN_UPDATE_COMPLETE', 'Vulnerability Updated', {
-          'Vulnerability ID': args.vuln_id,
-          'Result': JSON.parse(result)
-        });
-        break;
-        
-      case "evidence_store":
-        await logger.logVerbose('EVIDENCE_STORE_START', 'Storing Evidence', {
-          'Vulnerability ID': args.vulnerability_id,
-          'Method': args.method,
-          'URL': args.url,
-          'Response Code': args.response_code
-        });
-        result = await handleEvidenceStore(args);
-        await logger.logVerbose('EVIDENCE_STORE_COMPLETE', 'Evidence Stored', {
-          'Vulnerability ID': args.vulnerability_id,
-          'Result': JSON.parse(result)
-        });
-        break;
-        
-      case "database_viewer":
-        await logger.logVerbose('DATABASE_VIEWER', 'Launching Database Viewer', {});
-        result = await handleDatabaseViewer();
-        break;
-        
-      default:
-        await logger.logVerbose('ERROR', 'Unknown Tool Called', {
-          'Tool Name': toolName,
-          'Arguments': args
-        });
-        result = JSON.stringify({ success: false, error: "Unknown tool" });
+    // Check if tool is registered in the ToolRegistry
+    const handler = toolRegistry.getHandler(toolName);
+    
+    if (!handler) {
+      await logger.logVerbose('ERROR', 'Unknown Tool Called', {
+        'Tool Name': toolName,
+        'Arguments': args
+      });
+      result = JSON.stringify({ success: false, error: "Unknown tool" });
+    } else {
+      // Execute the tool handler from the registry
+      result = await handler(args);
+      
+      // Log the result (optional verbose logging can be added here)
+      await logger.logVerbose('TOOL_EXECUTED', 'Tool Executed', {
+        'Tool Name': toolName,
+        'Success': result ? JSON.parse(result).success : 'unknown'
+      });
     }
     
     // Log successful tool completion
@@ -2939,7 +2775,7 @@ async function processMessage(userMessage) {
     const response = await client.chat.completions.create({
       model: modelName,
       messages: currentMessages,
-      tools: tools,
+      tools: toolRegistry.getTools(),
       tool_choice: "auto",
       max_tokens: 16384,
       temperature: 0.7,
@@ -3151,12 +2987,41 @@ setTimeout(async () => {
   });
 }, 100);
 
-startInteractiveMode().catch(async (error) => {
-  await logger.log('FATAL_ERROR', 'Fatal startup error', {
-    error: error.message,
-    stack: error.stack
-  });
-  console.error("Fatal error:", error);
-  await logger.close();
-  process.exit(1);
-});
+// Initialize plugin system
+(async () => {
+  try {
+    // Register core tools first
+    registerCoreTools();
+    
+    // Load plugins from plugins directory
+    await pluginLoader.loadPlugins();
+    
+    // Display tool registry stats
+    const stats = toolRegistry.getStats();
+    console.log(`📊 Tool Registry: ${stats.totalTools} total tools available\n`);
+    
+    // Start the agent
+    startInteractiveMode().catch(async (error) => {
+      await logger.log('FATAL_ERROR', 'Fatal startup error', {
+        error: error.message,
+        stack: error.stack
+      });
+      console.error("Fatal error:", error);
+      await logger.close();
+      process.exit(1);
+    });
+  } catch (error) {
+    console.error("❌ Plugin system initialization failed:", error.message);
+    console.error("Starting agent with core tools only...\n");
+    
+    startInteractiveMode().catch(async (error) => {
+      await logger.log('FATAL_ERROR', 'Fatal startup error', {
+        error: error.message,
+        stack: error.stack
+      });
+      console.error("Fatal error:", error);
+      await logger.close();
+      process.exit(1);
+    });
+  }
+})();

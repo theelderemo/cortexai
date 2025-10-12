@@ -1,0 +1,11 @@
+{
+  "name": "plugin-name",
+  "version": "1.0.0",
+  "author": "Your Name",
+  "description": "Brief description of your plugin",
+  "main": "index.js",
+  "tools": [
+    "tool_name_1",
+    "tool_name_2"
+  ]
+}
