@@ -1,11 +1,14 @@
-# CortexAI
+# <img align="left" width="300" height="300" alt="cortexai-logo" src="https://github.com/user-attachments/assets/bfa94ca1-4ca8-4f9d-b9f6-520ceac7d4b6" /> CortexAI
 
-## Your Comprehensive Penetration Testing Platform
+
+
+
+Your Comprehensive Penetration Testing Platform
 
 An intelligent terminal agent powered by AI for ethical security testing and vulnerability analysis with integrated project management, scope tracking, and evidence collection.
 
-> [\!NOTE]
 > For detailed documentation, see [documentation](https://github.com/theelderemo/cortexai/tree/main/documentation)
+
 
 # Table of Contents
 
@@ -14,8 +17,6 @@ To see pictures of it in action, go to [Pictures](#pictures)
 [Overview](#overview)
 
 [Key Features](#key-features)
-
-[Project Management System](#project-management-system)
 
 [Terminal Formatting & UX](#terminal-formatting--ux)
 
@@ -39,8 +40,6 @@ To see pictures of it in action, go to [Pictures](#pictures)
 # Overview
 
 CortexAI is an interactive, terminal-first AI agent designed to assist penetration testers, security engineers, and auditors with reconnaissance, analysis, and reporting workflows. It integrates terminal command execution, file operations, structured AI guidance, and comprehensive project management into a single platform that runs locally.
-
-**NEW**: CortexAI now includes a complete Project Management Engine that automatically organizes your testing engagements, tracks vulnerabilities, maintains scope definitions, and preserves evidence chains using SQLite databases.
 
 This agent is explicitly built for ethical, white-hat security engagements—with features and guardrails to encourage safe, permissioned testing.
 
