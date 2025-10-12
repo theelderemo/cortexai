@@ -5,7 +5,7 @@ Welcome to CortexAI! This guide will walk you through everything you need to kno
 ## What is CortexAI?
 
 CortexAI is an AI-powered penetration testing platform that combines:
-- **Artificial Intelligence** - GPT-4 powered security analysis and guidance
+- **Artificial Intelligence** - AI powered security analysis and guidance
 - **Terminal Integration** - Direct command execution and tool integration
 - **Project Management** - Structured engagement tracking and evidence collection
 - **Ethical Focus** - Built-in guardrails for responsible security testing
