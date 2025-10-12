@@ -1,4 +1,13 @@
 /**
+ * This file is part of CortexAI.
+ *
+ * Copyright (c) 2025 Christopher Dickinson
+ *
+ * CortexAI is licensed under the MIT License.
+ * See the LICENSE file in the project root for full license information.
+ */
+
+/**
  * Example Plugin for CortexAI
  * Demonstrates how to create a plugin with multiple tools
  * This plugin provides encoding/hashing utilities

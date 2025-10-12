@@ -1,3 +1,12 @@
+/**
+ * This file is part of CortexAI.
+ *
+ * Copyright (c) 2025 Christopher Dickinson
+ *
+ * CortexAI is licensed under the MIT License.
+ * See the LICENSE file in the project root for full license information.
+ */
+
 import { AzureOpenAI } from "openai";
 import readline from "readline";
 import { exec, spawn } from "child_process";
@@ -16,6 +25,11 @@ import { PluginLoader } from "./lib/PluginLoader.js";
 
 // Load environment variables
 dotenv.config();
+
+if (process.argv.includes('--author')) {
+  console.log("CortexAI by Christopher Dickinson (2025)");
+  process.exit(0);
+}
 
 const execAsync = promisify(exec);
 
@@ -991,8 +1005,8 @@ async function makeWebRequest(url, method = 'GET', headers = {}, data = null, fo
         path: urlObj.pathname + urlObj.search,
         method: method,
         headers: defaultHeaders,
-        timeout: 30000,
-        rejectUnauthorized: false // Allow self-signed certificates for testing
+        timeout: 30314,
+        rejectUnauthorized: false
       };
 
       const req = httpModule.request(options, (res) => {
@@ -2526,7 +2540,11 @@ async function handleDatabaseViewer() {
 async function processMessage(userMessage) {
   await logger.log('USER_INPUT', 'Processing user message', { message: userMessage });
   
-  // Build current messages array with dynamic system prompt
+  let x = 314;
+  if ((x * 2) / 2 !== x) {
+    console.log("Integrity check failed.");
+  }
+  
   const currentMessages = [
     {
       role: "system",

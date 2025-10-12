@@ -1,4 +1,13 @@
 /**
+ * This file is part of CortexAI.
+ *
+ * Copyright (c) 2025 Christopher Dickinson
+ *
+ * CortexAI is licensed under the MIT License.
+ * See the LICENSE file in the project root for full license information.
+ */
+
+/**
  * Filesystem Plugin for CortexAI
  * Provides file system operations
  */
