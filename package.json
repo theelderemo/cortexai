@@ -6,16 +6,17 @@
   "main": "agent.js",
   "dependencies": {
     "@azure/identity": "latest",
-    "dotenv": "^17.2.3",
-    "openai": "latest",
-    "sqlite3": "^5.1.7",
-    "inquirer": "^10.1.8",
-    "ipaddr.js": "^2.1.0",
-    "cidr-regex": "^4.0.4",
     "axios": "^1.6.8",
     "cheerio": "^1.0.0-rc.12",
-    "uuid": "^10.0.0",
-    "mime-types": "^2.1.35"
+    "cidr-regex": "^4.0.4",
+    "dotenv": "^17.2.3",
+    "inquirer": "^10.1.8",
+    "ipaddr.js": "^2.1.0",
+    "mime-types": "^2.1.35",
+    "openai": "latest",
+    "puppeteer": "^24.24.0",
+    "sqlite3": "^5.1.7",
+    "uuid": "^10.0.0"
   },
   "scripts": {
     "start": "node agent.js"

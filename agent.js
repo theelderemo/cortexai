@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import https from "https";
 import http from "http";
 import { URL } from "url";
+import puppeteer from "puppeteer";
 import { ProjectStartup } from "./lib/ProjectStartup.js";
 
 // Load environment variables
@@ -120,6 +121,7 @@ class AgentLogger {
       
       this.log('SYSTEM', 'Agent Logger initialized');
       this.log('SYSTEM', `Log file: ${this.logFile}`);
+      this.log('SYSTEM', '═'.repeat(80));
     } catch (error) {
       console.error('Failed to initialize logging system:', error.message);
     }
@@ -168,15 +170,15 @@ class AgentLogger {
     
     switch (terminal) {
       case 'gnome-terminal':
-        return ['--title=Agent Logs', '--', 'bash', '-c', tailCommand];
+        return ['--title=Agent Audit Log', '--', 'bash', '-c', tailCommand];
       case 'xterm':
-        return ['-title', 'Agent Logs', '-e', 'bash', '-c', tailCommand];
+        return ['-title', 'Agent Audit Log', '-e', 'bash', '-c', tailCommand];
       case 'konsole':
-        return ['--title', 'Agent Logs', '-e', 'bash', '-c', tailCommand];
+        return ['--title', 'Agent Audit Log', '-e', 'bash', '-c', tailCommand];
       case 'xfce4-terminal':
-        return ['--title=Agent Logs', '--command', tailCommand];
+        return ['--title=Agent Audit Log', '--command', tailCommand];
       case 'mate-terminal':
-        return ['--title=Agent Logs', '--command', tailCommand];
+        return ['--title=Agent Audit Log', '--command', tailCommand];
       default:
         return ['-e', 'bash', '-c', tailCommand];
     }
@@ -202,15 +204,110 @@ class AgentLogger {
     }
   }
 
+  // Verbose logging for detailed audit trail
+  async logVerbose(category, message, details = {}) {
+    const timestamp = new Date().toISOString();
+    const separator = '─'.repeat(80);
+    
+    let logOutput = `\n${separator}\n`;
+    logOutput += `[${timestamp}] [${category.toUpperCase()}]\n`;
+    logOutput += `${message}\n`;
+    
+    if (Object.keys(details).length > 0) {
+      logOutput += `\nDetails:\n`;
+      for (const [key, value] of Object.entries(details)) {
+        if (value !== null && value !== undefined) {
+          const formattedValue = typeof value === 'object' 
+            ? JSON.stringify(value, null, 2).split('\n').map(line => '  ' + line).join('\n')
+            : value;
+          logOutput += `  ${key}: ${formattedValue}\n`;
+        }
+      }
+    }
+    logOutput += `${separator}\n`;
+    
+    try {
+      if (this.logStream) {
+        await this.logStream.writeFile(logOutput);
+      }
+    } catch (error) {
+      console.error('Logging error:', error.message);
+    }
+  }
+
+  // Log tool execution start
+  async logToolStart(toolName, args) {
+    await this.logVerbose('TOOL_START', `Executing Tool: ${toolName}`, {
+      'Tool Name': toolName,
+      'Arguments': args,
+      'Timestamp': new Date().toISOString()
+    });
+  }
+
+  // Log tool execution result
+  async logToolResult(toolName, result, duration) {
+    const parsedResult = typeof result === 'string' ? JSON.parse(result) : result;
+    await this.logVerbose('TOOL_RESULT', `Tool Completed: ${toolName}`, {
+      'Tool Name': toolName,
+      'Success': parsedResult.success,
+      'Duration': duration ? `${duration}ms` : 'N/A',
+      'Result': parsedResult,
+      'Timestamp': new Date().toISOString()
+    });
+  }
+
+  // Log tool execution error
+  async logToolError(toolName, error, duration) {
+    await this.logVerbose('TOOL_ERROR', `Tool Failed: ${toolName}`, {
+      'Tool Name': toolName,
+      'Error': error.message,
+      'Stack': error.stack,
+      'Duration': duration ? `${duration}ms` : 'N/A',
+      'Timestamp': new Date().toISOString()
+    });
+  }
+
+  // Log command execution details
+  async logCommandExecution(command, workingDir, result) {
+    await this.logVerbose('COMMAND_EXEC', `Command Execution`, {
+      'Command': command,
+      'Working Directory': workingDir,
+      'Success': result.success,
+      'STDOUT': result.stdout || '(empty)',
+      'STDERR': result.stderr || '(empty)',
+      'Exit Code': result.exit_code || 0,
+      'Timestamp': new Date().toISOString()
+    });
+  }
+
+  // Log web request details
+  async logWebRequest(method, url, headers, result) {
+    await this.logVerbose('WEB_REQUEST', `HTTP ${method} Request`, {
+      'Method': method,
+      'URL': url,
+      'Request Headers': headers,
+      'Status Code': result.status_code,
+      'Response Headers': result.headers,
+      'Content Length': result.content_length || 0,
+      'Success': result.success,
+      'Timestamp': new Date().toISOString()
+    });
+  }
+
+  // Log AI interaction
+  async logAIInteraction(type, details) {
+    await this.logVerbose('AI_INTERACTION', type, details);
+  }
+
   async close() {
     try {
       if (this.logStream) {
+        await this.log('SYSTEM', 'Agent Logger closing');
         await this.logStream.close();
       }
       if (this.terminalProcess) {
         this.terminalProcess.kill();
       }
-      this.log('SYSTEM', 'Agent Logger closed');
     } catch (error) {
       console.error('Error closing logger:', error.message);
     }
@@ -1265,6 +1362,326 @@ async function searchWeb(query, numResults = 10) {
 
 async function browseWebsite(url, extractLinks = false, extractForms = false, extractScripts = false, userAgent = null) {
   try {
+    // First try with Puppeteer for JavaScript-rendered content
+    try {
+      return await browseWebsiteWithPuppeteer(url, extractLinks, extractForms, extractScripts, userAgent);
+    } catch (puppeteerError) {
+      console.log(`Puppeteer failed, falling back to static HTML parsing: ${puppeteerError.message}`);
+      // Fall back to the original static HTML method
+      return await browseWebsiteStatic(url, extractLinks, extractForms, extractScripts, userAgent);
+    }
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message,
+      url: url
+    });
+  }
+}
+
+// New function using Puppeteer for JavaScript rendering
+async function browseWebsiteWithPuppeteer(url, extractLinks = false, extractForms = false, extractScripts = false, userAgent = null) {
+  let browser = null;
+  try {
+    // Launch browser with minimal options for performance
+    browser = await puppeteer.launch({
+      headless: true,
+      args: [
+        '--no-sandbox',
+        '--disable-setuid-sandbox',
+        '--disable-dev-shm-usage',
+        '--disable-gpu',
+        '--no-first-run',
+        '--no-default-browser-check',
+        '--disable-default-apps'
+      ]
+    });
+
+    const page = await browser.newPage();
+    
+    // Set user agent if provided
+    if (userAgent) {
+      await page.setUserAgent(userAgent);
+    }
+
+    // Set viewport and timeout
+    await page.setViewport({ width: 1366, height: 768 });
+    page.setDefaultTimeout(60000);
+
+    // Navigate to the page and wait for network to be idle
+    const response = await page.goto(url, { 
+      waitUntil: 'networkidle2',
+      timeout: 60000 
+    });
+
+    // Get the fully rendered HTML content
+    const htmlContent = await page.content();
+    
+    // Get response headers and status
+    const status = response.status();
+    const headers = response.headers();
+
+    const result = {
+      success: true,
+      url: url,
+      status_code: status,
+      headers: headers,
+      content_length: htmlContent.length,
+      title: "",
+      text_content: "",
+      links: [],
+      forms: [],
+      scripts: [],
+      meta_tags: [],
+      security_headers: {},
+      rendered_with: "puppeteer"
+    };
+
+    // Extract title using Puppeteer
+    try {
+      result.title = await page.title();
+    } catch (e) {
+      const titleMatch = htmlContent.match(/<title[^>]*>([^<]*)<\/title>/i);
+      if (titleMatch) {
+        result.title = titleMatch[1].trim();
+      }
+    }
+
+    // Extract text content from the rendered page
+    try {
+      result.text_content = await page.evaluate(() => {
+        return document.body.innerText.substring(0, 2000);
+      });
+    } catch (e) {
+      // Fallback to regex extraction
+      result.text_content = htmlContent
+        .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+        .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim()
+        .substring(0, 2000);
+    }
+
+    // Enhanced link extraction with Puppeteer
+    if (extractLinks) {
+      try {
+        const links = await page.evaluate(() => {
+          const linkElements = [];
+          
+          // Get all anchor tags
+          document.querySelectorAll('a[href]').forEach(link => {
+            linkElements.push({
+              type: 'link',
+              url: link.href,
+              text: link.textContent.trim(),
+              relative: link.getAttribute('href'),
+              visible: link.offsetParent !== null
+            });
+          });
+
+          // Get all buttons
+          document.querySelectorAll('button').forEach(button => {
+            const onclick = button.getAttribute('onclick');
+            const dataUrl = button.getAttribute('data-url') || button.getAttribute('data-href');
+            const classes = button.className;
+            
+            linkElements.push({
+              type: 'button',
+              onclick: onclick,
+              data_url: dataUrl,
+              text: button.textContent.trim(),
+              class: classes,
+              visible: button.offsetParent !== null,
+              id: button.id
+            });
+          });
+
+          // Get clickable elements with common CSS classes
+          const clickableSelectors = [
+            '[ng-click]', '[v-on:click]', '[@click]',
+            '.btn', '.button', '.clickable', '.pointer',
+            '[role="button"]', '.mat-button', '.mat-raised-button',
+            '.nav-link', '.menu-item'
+          ];
+
+          clickableSelectors.forEach(selector => {
+            try {
+              document.querySelectorAll(selector).forEach(element => {
+                if (!element.matches('a, button')) { // Avoid duplicates
+                  linkElements.push({
+                    type: 'clickable_element',
+                    selector: selector,
+                    text: element.textContent.trim(),
+                    class: element.className,
+                    id: element.id,
+                    visible: element.offsetParent !== null,
+                    tag: element.tagName.toLowerCase()
+                  });
+                }
+              });
+            } catch (e) {
+              // Skip if selector is invalid
+            }
+          });
+
+          return linkElements;
+        });
+
+        result.links = links;
+      } catch (e) {
+        console.log(`Failed to extract links with Puppeteer: ${e.message}`);
+        // Fallback to regex extraction on the rendered HTML
+        result.links = extractLinksFromHTML(htmlContent, url);
+      }
+    }
+
+    // Enhanced form extraction with Puppeteer
+    if (extractForms) {
+      try {
+        const forms = await page.evaluate(() => {
+          const formElements = [];
+
+          document.querySelectorAll('form').forEach(form => {
+            const inputs = [];
+            form.querySelectorAll('input, textarea, select').forEach(input => {
+              inputs.push({
+                name: input.name,
+                type: input.type || input.tagName.toLowerCase(),
+                value: input.value,
+                id: input.id,
+                placeholder: input.placeholder,
+                required: input.required,
+                visible: input.offsetParent !== null
+              });
+            });
+
+            formElements.push({
+              action: form.action,
+              method: form.method.toUpperCase() || 'GET',
+              inputs: inputs,
+              id: form.id,
+              class: form.className,
+              visible: form.offsetParent !== null
+            });
+          });
+
+          // Also look for individual input fields not in forms
+          const standaloneInputs = [];
+          document.querySelectorAll('input:not(form input), textarea:not(form textarea), select:not(form select)').forEach(input => {
+            standaloneInputs.push({
+              name: input.name,
+              type: input.type || input.tagName.toLowerCase(),
+              id: input.id,
+              placeholder: input.placeholder,
+              visible: input.offsetParent !== null
+            });
+          });
+
+          if (standaloneInputs.length > 0) {
+            formElements.push({
+              type: 'standalone_inputs',
+              inputs: standaloneInputs
+            });
+          }
+
+          return formElements;
+        });
+
+        result.forms = forms;
+      } catch (e) {
+        console.log(`Failed to extract forms with Puppeteer: ${e.message}`);
+        // Fallback to regex extraction
+        result.forms = extractFormsFromHTML(htmlContent, url);
+      }
+    }
+
+    // Enhanced script extraction
+    if (extractScripts) {
+      try {
+        const scripts = await page.evaluate(() => {
+          const scriptElements = [];
+
+          document.querySelectorAll('script[src]').forEach(script => {
+            scriptElements.push({
+              type: 'external',
+              url: script.src,
+              relative: script.getAttribute('src')
+            });
+          });
+
+          const inlineScripts = Array.from(document.querySelectorAll('script:not([src])')).map(script => script.textContent);
+          if (inlineScripts.length > 0) {
+            scriptElements.push({
+              type: 'inline',
+              count: inlineScripts.length,
+              total_size: inlineScripts.reduce((sum, script) => sum + script.length, 0),
+              samples: inlineScripts.slice(0, 3).map(script => script.substring(0, 200))
+            });
+          }
+
+          return scriptElements;
+        });
+
+        result.scripts = scripts;
+      } catch (e) {
+        console.log(`Failed to extract scripts with Puppeteer: ${e.message}`);
+        result.scripts = extractScriptsFromHTML(htmlContent, url);
+      }
+    }
+
+    // Extract meta tags from rendered content
+    try {
+      const metaTags = await page.evaluate(() => {
+        const tags = [];
+        document.querySelectorAll('meta').forEach(meta => {
+          const name = meta.getAttribute('name') || meta.getAttribute('property');
+          const content = meta.getAttribute('content');
+          if (name && content) {
+            tags.push({
+              name: name,
+              content: content,
+              type: meta.getAttribute('name') ? 'name' : 'property'
+            });
+          }
+        });
+        return tags;
+      });
+      result.meta_tags = metaTags;
+    } catch (e) {
+      // Fallback to regex extraction
+      result.meta_tags = extractMetaTagsFromHTML(htmlContent);
+    }
+
+    // Check for security headers
+    const securityHeaders = [
+      'strict-transport-security',
+      'content-security-policy', 
+      'x-frame-options',
+      'x-content-type-options',
+      'x-xss-protection',
+      'referrer-policy'
+    ];
+
+    for (const header of securityHeaders) {
+      if (headers[header]) {
+        result.security_headers[header] = headers[header];
+      }
+    }
+
+    await browser.close();
+    return JSON.stringify(result);
+
+  } catch (error) {
+    if (browser) {
+      await browser.close();
+    }
+    throw error;
+  }
+}
+
+async function browseWebsiteStatic(url, extractLinks = false, extractForms = false, extractScripts = false, userAgent = null) {
+  try {
     const headers = {};
     if (userAgent) {
       headers['User-Agent'] = userAgent;
@@ -1295,6 +1712,7 @@ async function browseWebsite(url, extractLinks = false, extractForms = false, ex
       scripts: [],
       meta_tags: [],
       security_headers: {},
+      rendered_with: "static"
     };
 
     // Extract title
@@ -1312,209 +1730,19 @@ async function browseWebsite(url, extractLinks = false, extractForms = false, ex
       .trim()
       .substring(0, 2000); // Limit text content
 
-    // Improved link extraction - handle more cases
     if (extractLinks) {
-      // Standard <a> tags
-      const linkMatches = htmlContent.match(/<a[^>]+href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi) || [];
-      for (const match of linkMatches) {
-        const hrefMatch = match.match(/href=["']([^"']+)["']/i);
-        const textMatch = match.match(/>([^<]*)<\/a>/i);
-        if (hrefMatch) {
-          try {
-            const linkUrl = new URL(hrefMatch[1], url).href;
-            result.links.push({
-              type: 'link',
-              url: linkUrl,
-              text: textMatch ? textMatch[1].trim() : '',
-              relative: hrefMatch[1]
-            });
-          } catch (e) {
-            // Invalid URL, but still capture it
-            result.links.push({
-              type: 'link',
-              url: hrefMatch[1],
-              text: textMatch ? textMatch[1].trim() : '',
-              relative: hrefMatch[1],
-              invalid_url: true
-            });
-          }
-        }
-      }
-
-      // Extract buttons with onclick or data attributes that might contain URLs
-      const buttonMatches = htmlContent.match(/<button[^>]*>[\s\S]*?<\/button>/gi) || [];
-      for (const button of buttonMatches) {
-        const onclickMatch = button.match(/onclick=["']([^"']+)["']/i);
-        const dataMatches = button.match(/data-[^=]*=["']([^"']*)[^"']*["']/gi);
-        const textMatch = button.match(/>([^<]*)<\/button>/i);
-        const classMatch = button.match(/class=["']([^"']+)["']/i);
-        
-        result.links.push({
-          type: 'button',
-          onclick: onclickMatch ? onclickMatch[1] : null,
-          data_attributes: dataMatches || [],
-          text: textMatch ? textMatch[1].trim() : '',
-          class: classMatch ? classMatch[1] : '',
-          element: button.substring(0, 200)
-        });
-      }
-
-      // Extract router-link or ng-click elements (Angular/Vue specific)
-      const routerMatches = htmlContent.match(/<[^>]+(router-link|ng-click|@click|routerLink|ui-sref)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
-      for (const match of routerMatches) {
-        const routerMatch = match.match(/(router-link|ng-click|@click|routerLink|ui-sref)=["']([^"']+)["']/i);
-        const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
-        if (routerMatch) {
-          result.links.push({
-            type: 'spa_route',
-            directive: routerMatch[1],
-            target: routerMatch[2],
-            text: textMatch ? textMatch[1].trim() : '',
-            element: match.substring(0, 200)
-          });
-        }
-      }
-
-      // Extract any clickable elements with specific classes or attributes
-      const clickableMatches = htmlContent.match(/<[^>]+(mat-button|btn|clickable|pointer)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
-      for (const match of clickableMatches) {
-        const classMatch = match.match(/class=["']([^"']+)["']/i);
-        const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
-        const idMatch = match.match(/id=["']([^"']+)["']/i);
-        
-        result.links.push({
-          type: 'clickable_element',
-          class: classMatch ? classMatch[1] : '',
-          id: idMatch ? idMatch[1] : '',
-          text: textMatch ? textMatch[1].trim() : '',
-          element: match.substring(0, 200)
-        });
-      }
+      result.links = extractLinksFromHTML(htmlContent, url);
     }
 
-    // Improved form extraction
     if (extractForms) {
-      const formMatches = htmlContent.match(/<form[^>]*>[\s\S]*?<\/form>/gi) || [];
-      for (const formMatch of formMatches) {
-        const actionMatch = formMatch.match(/action=["']([^"']*)["']/i);
-        const methodMatch = formMatch.match(/method=["']([^"']*)["']/i);
-        const inputMatches = formMatch.match(/<input[^>]*>/gi) || [];
-        const textareaMatches = formMatch.match(/<textarea[^>]*>[\s\S]*?<\/textarea>/gi) || [];
-        const selectMatches = formMatch.match(/<select[^>]*>[\s\S]*?<\/select>/gi) || [];
-        
-        const inputs = [...inputMatches, ...textareaMatches, ...selectMatches].map(input => {
-          const nameMatch = input.match(/name=["']([^"']*)["']/i);
-          const typeMatch = input.match(/type=["']([^"']*)["']/i);
-          const valueMatch = input.match(/value=["']([^"']*)["']/i);
-          const idMatch = input.match(/id=["']([^"']*)["']/i);
-          const placeholderMatch = input.match(/placeholder=["']([^"']*)["']/i);
-          return {
-            name: nameMatch ? nameMatch[1] : '',
-            type: typeMatch ? typeMatch[1] : (input.includes('<textarea') ? 'textarea' : (input.includes('<select') ? 'select' : 'text')),
-            value: valueMatch ? valueMatch[1] : '',
-            id: idMatch ? idMatch[1] : '',
-            placeholder: placeholderMatch ? placeholderMatch[1] : ''
-          };
-        });
-
-        result.forms.push({
-          action: actionMatch ? actionMatch[1] : '',
-          method: methodMatch ? methodMatch[1].toUpperCase() : 'GET',
-          inputs: inputs,
-          form_snippet: formMatch.substring(0, 300)
-        });
-      }
-
-      // Also look for Angular/React form patterns
-      const ngFormMatches = htmlContent.match(/<[^>]+(ng-submit|formGroup|mat-form-field)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
-      for (const match of ngFormMatches) {
-        const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
-        result.forms.push({
-          type: 'spa_form',
-          text: textMatch ? textMatch[1].trim() : '',
-          element: match.substring(0, 300)
-        });
-      }
-
-      // Look for input fields that might not be in forms
-      const standaloneInputs = htmlContent.match(/<input[^>]*>/gi) || [];
-      if (standaloneInputs.length > 0) {
-        const inputs = standaloneInputs.map(input => {
-          const nameMatch = input.match(/name=["']([^"']*)["']/i);
-          const typeMatch = input.match(/type=["']([^"']*)["']/i);
-          const idMatch = input.match(/id=["']([^"']*)["']/i);
-          const placeholderMatch = input.match(/placeholder=["']([^"']*)["']/i);
-          return {
-            name: nameMatch ? nameMatch[1] : '',
-            type: typeMatch ? typeMatch[1] : 'text',
-            id: idMatch ? idMatch[1] : '',
-            placeholder: placeholderMatch ? placeholderMatch[1] : ''
-          };
-        });
-
-        result.forms.push({
-          type: 'standalone_inputs',
-          inputs: inputs
-        });
-      }
+      result.forms = extractFormsFromHTML(htmlContent, url);
     }
 
-    // Improved script extraction
     if (extractScripts) {
-      // External scripts
-      const scriptMatches = htmlContent.match(/<script[^>]*src=["']([^"']+)["'][^>]*>/gi) || [];
-      for (const match of scriptMatches) {
-        const srcMatch = match.match(/src=["']([^"']+)["']/i);
-        if (srcMatch) {
-          try {
-            const scriptUrl = new URL(srcMatch[1], url).href;
-            result.scripts.push({
-              type: 'external',
-              url: scriptUrl,
-              relative: srcMatch[1]
-            });
-          } catch (e) {
-            result.scripts.push({
-              type: 'external',
-              url: srcMatch[1],
-              relative: srcMatch[1],
-              invalid_url: true
-            });
-          }
-        }
-      }
-
-      // Inline scripts
-      const inlineScripts = htmlContent.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || [];
-      const inlineScriptContents = inlineScripts.map(script => {
-        const contentMatch = script.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
-        return contentMatch ? contentMatch[1] : '';
-      });
-
-      if (inlineScriptContents.length > 0) {
-        result.scripts.push({
-          type: 'inline',
-          count: inlineScripts.length,
-          total_size: inlineScriptContents.reduce((sum, script) => sum + script.length, 0),
-          samples: inlineScriptContents.slice(0, 3).map(script => script.substring(0, 200))
-        });
-      }
+      result.scripts = extractScriptsFromHTML(htmlContent, url);
     }
 
-    // Extract meta tags
-    const metaMatches = htmlContent.match(/<meta[^>]*>/gi) || [];
-    for (const meta of metaMatches) {
-      const nameMatch = meta.match(/name=["']([^"']*)["']/i);
-      const contentMatch = meta.match(/content=["']([^"']*)["']/i);
-      const propertyMatch = meta.match(/property=["']([^"']*)["']/i);
-      if ((nameMatch || propertyMatch) && contentMatch) {
-        result.meta_tags.push({
-          name: nameMatch ? nameMatch[1] : propertyMatch[1],
-          content: contentMatch[1],
-          type: nameMatch ? 'name' : 'property'
-        });
-      }
-    }
+    result.meta_tags = extractMetaTagsFromHTML(htmlContent);
 
     // Check for security headers
     const securityHeaders = [
@@ -1541,6 +1769,227 @@ async function browseWebsite(url, extractLinks = false, extractForms = false, ex
       url: url
     });
   }
+}
+
+// Helper function to extract links from HTML content
+function extractLinksFromHTML(htmlContent, url) {
+  const links = [];
+  
+  // Standard <a> tags
+  const linkMatches = htmlContent.match(/<a[^>]+href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi) || [];
+  for (const match of linkMatches) {
+    const hrefMatch = match.match(/href=["']([^"']+)["']/i);
+    const textMatch = match.match(/>([^<]*)<\/a>/i);
+    if (hrefMatch) {
+      try {
+        const linkUrl = new URL(hrefMatch[1], url).href;
+        links.push({
+          type: 'link',
+          url: linkUrl,
+          text: textMatch ? textMatch[1].trim() : '',
+          relative: hrefMatch[1]
+        });
+      } catch (e) {
+        links.push({
+          type: 'link',
+          url: hrefMatch[1],
+          text: textMatch ? textMatch[1].trim() : '',
+          relative: hrefMatch[1],
+          invalid_url: true
+        });
+      }
+    }
+  }
+
+  // Extract buttons with onclick or data attributes
+  const buttonMatches = htmlContent.match(/<button[^>]*>[\s\S]*?<\/button>/gi) || [];
+  for (const button of buttonMatches) {
+    const onclickMatch = button.match(/onclick=["']([^"']+)["']/i);
+    const dataMatches = button.match(/data-[^=]*=["']([^"']*)[^"']*["']/gi);
+    const textMatch = button.match(/>([^<]*)<\/button>/i);
+    const classMatch = button.match(/class=["']([^"']+)["']/i);
+    
+    links.push({
+      type: 'button',
+      onclick: onclickMatch ? onclickMatch[1] : null,
+      data_attributes: dataMatches || [],
+      text: textMatch ? textMatch[1].trim() : '',
+      class: classMatch ? classMatch[1] : '',
+      element: button.substring(0, 200)
+    });
+  }
+
+  // Extract router-link or ng-click elements (Angular/Vue specific)
+  const routerMatches = htmlContent.match(/<[^>]+(router-link|ng-click|@click|routerLink|ui-sref)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
+  for (const match of routerMatches) {
+    const routerMatch = match.match(/(router-link|ng-click|@click|routerLink|ui-sref)=["']([^"']+)["']/i);
+    const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
+    if (routerMatch) {
+      links.push({
+        type: 'spa_route',
+        directive: routerMatch[1],
+        target: routerMatch[2],
+        text: textMatch ? textMatch[1].trim() : '',
+        element: match.substring(0, 200)
+      });
+    }
+  }
+
+  // Extract clickable elements with specific classes
+  const clickableMatches = htmlContent.match(/<[^>]+(mat-button|btn|clickable|pointer)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
+  for (const match of clickableMatches) {
+    const classMatch = match.match(/class=["']([^"']+)["']/i);
+    const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
+    const idMatch = match.match(/id=["']([^"']+)["']/i);
+    
+    links.push({
+      type: 'clickable_element',
+      class: classMatch ? classMatch[1] : '',
+      id: idMatch ? idMatch[1] : '',
+      text: textMatch ? textMatch[1].trim() : '',
+      element: match.substring(0, 200)
+    });
+  }
+
+  return links;
+}
+
+// Helper function to extract forms from HTML content
+function extractFormsFromHTML(htmlContent, url) {
+  const forms = [];
+  
+  const formMatches = htmlContent.match(/<form[^>]*>[\s\S]*?<\/form>/gi) || [];
+  for (const formMatch of formMatches) {
+    const actionMatch = formMatch.match(/action=["']([^"']*)["']/i);
+    const methodMatch = formMatch.match(/method=["']([^"']*)["']/i);
+    const inputMatches = formMatch.match(/<input[^>]*>/gi) || [];
+    const textareaMatches = formMatch.match(/<textarea[^>]*>[\s\S]*?<\/textarea>/gi) || [];
+    const selectMatches = formMatch.match(/<select[^>]*>[\s\S]*?<\/select>/gi) || [];
+    
+    const inputs = [...inputMatches, ...textareaMatches, ...selectMatches].map(input => {
+      const nameMatch = input.match(/name=["']([^"']*)["']/i);
+      const typeMatch = input.match(/type=["']([^"']*)["']/i);
+      const valueMatch = input.match(/value=["']([^"']*)["']/i);
+      const idMatch = input.match(/id=["']([^"']*)["']/i);
+      const placeholderMatch = input.match(/placeholder=["']([^"']*)["']/i);
+      return {
+        name: nameMatch ? nameMatch[1] : '',
+        type: typeMatch ? typeMatch[1] : (input.includes('<textarea') ? 'textarea' : (input.includes('<select') ? 'select' : 'text')),
+        value: valueMatch ? valueMatch[1] : '',
+        id: idMatch ? idMatch[1] : '',
+        placeholder: placeholderMatch ? placeholderMatch[1] : ''
+      };
+    });
+
+    forms.push({
+      action: actionMatch ? actionMatch[1] : '',
+      method: methodMatch ? methodMatch[1].toUpperCase() : 'GET',
+      inputs: inputs,
+      form_snippet: formMatch.substring(0, 300)
+    });
+  }
+
+  // Look for Angular/React form patterns
+  const ngFormMatches = htmlContent.match(/<[^>]+(ng-submit|formGroup|mat-form-field)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
+  for (const match of ngFormMatches) {
+    const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
+    forms.push({
+      type: 'spa_form',
+      text: textMatch ? textMatch[1].trim() : '',
+      element: match.substring(0, 300)
+    });
+  }
+
+  // Look for standalone input fields
+  const standaloneInputs = htmlContent.match(/<input[^>]*>/gi) || [];
+  if (standaloneInputs.length > 0) {
+    const inputs = standaloneInputs.map(input => {
+      const nameMatch = input.match(/name=["']([^"']*)["']/i);
+      const typeMatch = input.match(/type=["']([^"']*)["']/i);
+      const idMatch = input.match(/id=["']([^"']*)["']/i);
+      const placeholderMatch = input.match(/placeholder=["']([^"']*)["']/i);
+      return {
+        name: nameMatch ? nameMatch[1] : '',
+        type: typeMatch ? typeMatch[1] : 'text',
+        id: idMatch ? idMatch[1] : '',
+        placeholder: placeholderMatch ? placeholderMatch[1] : ''
+      };
+    });
+
+    forms.push({
+      type: 'standalone_inputs',
+      inputs: inputs
+    });
+  }
+
+  return forms;
+}
+
+// Helper function to extract scripts from HTML content
+function extractScriptsFromHTML(htmlContent, url) {
+  const scripts = [];
+  
+  // External scripts
+  const scriptMatches = htmlContent.match(/<script[^>]*src=["']([^"']+)["'][^>]*>/gi) || [];
+  for (const match of scriptMatches) {
+    const srcMatch = match.match(/src=["']([^"']+)["']/i);
+    if (srcMatch) {
+      try {
+        const scriptUrl = new URL(srcMatch[1], url).href;
+        scripts.push({
+          type: 'external',
+          url: scriptUrl,
+          relative: srcMatch[1]
+        });
+      } catch (e) {
+        scripts.push({
+          type: 'external',
+          url: srcMatch[1],
+          relative: srcMatch[1],
+          invalid_url: true
+        });
+      }
+    }
+  }
+
+  // Inline scripts
+  const inlineScripts = htmlContent.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || [];
+  const inlineScriptContents = inlineScripts.map(script => {
+    const contentMatch = script.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+    return contentMatch ? contentMatch[1] : '';
+  });
+
+  if (inlineScriptContents.length > 0) {
+    scripts.push({
+      type: 'inline',
+      count: inlineScripts.length,
+      total_size: inlineScriptContents.reduce((sum, script) => sum + script.length, 0),
+      samples: inlineScriptContents.slice(0, 3).map(script => script.substring(0, 200))
+    });
+  }
+
+  return scripts;
+}
+
+// Helper function to extract meta tags from HTML content
+function extractMetaTagsFromHTML(htmlContent) {
+  const metaTags = [];
+  const metaMatches = htmlContent.match(/<meta[^>]*>/gi) || [];
+  
+  for (const meta of metaMatches) {
+    const nameMatch = meta.match(/name=["']([^"']*)["']/i);
+    const contentMatch = meta.match(/content=["']([^"']*)["']/i);
+    const propertyMatch = meta.match(/property=["']([^"']*)["']/i);
+    if ((nameMatch || propertyMatch) && contentMatch) {
+      metaTags.push({
+        name: nameMatch ? nameMatch[1] : propertyMatch[1],
+        content: contentMatch[1],
+        type: nameMatch ? 'name' : 'property'
+      });
+    }
+  }
+  
+  return metaTags;
 }
 
 // ============ Enhanced API Discovery Tools ============
@@ -1739,137 +2188,321 @@ async function probeApiEndpoints(baseUrl, customPaths = null) {
 
 // ============ Tool Dispatcher ============
 async function callTool(toolName, args) {
+  const startTime = Date.now();
+  
+  // Simple message for chat window
   if (ENABLE_FORMATTING) {
-    console.log(`\n${TerminalFormatter.formatMarkdown('**🔧 Calling tool:**')} \`${toolName}\``);
-    console.log(`${TerminalFormatter.formatMarkdown('**📋 Arguments:**')} \`${JSON.stringify(args, null, 2)}\``);
+    console.log(`\n${TerminalFormatter.formatMarkdown('**🔧 Using tool:**')} \`${toolName}\``);
   } else {
-    console.log(`\n🔧 Calling tool: ${toolName}`);
-    console.log(`📋 Arguments: ${JSON.stringify(args, null, 2)}`);
+    console.log(`\n🔧 Using tool: ${toolName}`);
   }
   
-  // Log tool call
-  await logger.log('TOOL_CALL', `Executing ${toolName}`, args);
+  // Detailed audit log
+  await logger.logToolStart(toolName, args);
   
   let result;
-  switch (toolName) {
-    case "execute_command":
-      await logger.log('COMMAND', `Executing: ${args.command}`, { 
-        working_directory: args.working_directory || process.cwd() 
-      });
-      result = await executeCommand(args.command, args.working_directory);
-      break;
-    case "read_file":
-      await logger.log('FILE_READ', `Reading file: ${args.file_path}`);
-      result = await readFile(args.file_path);
-      break;
-    case "write_file":
-      await logger.log('FILE_WRITE', `Writing to file: ${args.file_path}`, {
-        content_length: args.content?.length || 0
-      });
-      result = await writeFile(args.file_path, args.content);
-      break;
-    case "list_directory":
-      await logger.log('DIRECTORY_LIST', `Listing directory: ${args.directory_path || '.'}`);
-      result = await listDirectory(args.directory_path);
-      break;
-    case "get_cwd":
-      await logger.log('GET_CWD', 'Getting current working directory');
-      result = getCurrentWorkingDirectory();
-      break;
-    case "web_request":
-      await logger.log('WEB_REQUEST', `Making ${args.method || 'GET'} request to: ${args.url}`);
-      result = await makeWebRequest(args.url, args.method, args.headers, args.data, args.follow_redirects);
-      break;
-    case "web_search":
-      await logger.log('WEB_SEARCH', `Searching web for: ${args.query}`, { num_results: args.num_results });
-      result = await searchWeb(args.query, args.num_results);
-      break;
-    case "browse_website":
-      await logger.log('BROWSE_WEBSITE', `Browsing website: ${args.url}`, {
-        extract_links: args.extract_links,
-        extract_forms: args.extract_forms,
-        extract_scripts: args.extract_scripts
-      });
-      result = await browseWebsite(args.url, args.extract_links, args.extract_forms, args.extract_scripts, args.user_agent);
-      break;
-    case "analyze_javascript":
-      await logger.log('JS_ANALYSIS', `Analyzing JavaScript for API endpoints: ${args.url}`);
-      result = await analyzeJavaScript(args.url, args.search_patterns);
-      break;
-    case "probe_api_endpoints":
-      await logger.log('API_PROBE', `Probing for API endpoints: ${args.base_url}`);
-      result = await probeApiEndpoints(args.base_url, args.paths);
-      break;
-    case "project_create":
-      await logger.log('PROJECT_CREATE', `Creating project: ${args.project_name}`);
-      result = await handleProjectCreate(args);
-      break;
-    case "project_load":
-      await logger.log('PROJECT_LOAD', `Loading project: ${args.project_name}`);
-      result = await handleProjectLoad(args);
-      break;
-    case "project_list":
-      await logger.log('PROJECT_LIST', 'Listing projects');
-      result = await handleProjectList();
-      break;
-    case "project_status":
-      await logger.log('PROJECT_STATUS', 'Getting project status');
-      result = await handleProjectStatus();
-      break;
-    case "scope_add":
-      await logger.log('SCOPE_ADD', `Adding scope rule: ${args.pattern}`);
-      result = await handleScopeAdd(args);
-      break;
-    case "scope_list":
-      await logger.log('SCOPE_LIST', 'Listing scope rules');
-      result = await handleScopeList();
-      break;
-    case "sitemap_view":
-      await logger.log('SITEMAP_VIEW', 'Viewing site map');
-      result = await handleSitemapView();
-      break;
-    case "discover_content":
-      await logger.log('CONTENT_DISCOVERY', `Content discovery on: ${args.base_url}`);
-      result = await handleContentDiscovery(args);
-      break;
-    case "vuln_log":
-      await logger.log('VULN_LOG', `Logging vulnerability: ${args.title}`);
-      result = await handleVulnLog(args);
-      break;
-    case "vuln_list":
-      await logger.log('VULN_LIST', 'Listing vulnerabilities');
-      result = await handleVulnList(args);
-      break;
-    case "vuln_update":
-      await logger.log('VULN_UPDATE', `Updating vulnerability: ${args.vuln_id}`);
-      result = await handleVulnUpdate(args);
-      break;
-    case "evidence_store":
-      await logger.log('EVIDENCE_STORE', `Storing evidence for vulnerability: ${args.vulnerability_id}`);
-      result = await handleEvidenceStore(args);
-      break;
-    case "database_viewer":
-      await logger.log('DATABASE_VIEWER', 'Launching database viewer');
-      result = await handleDatabaseViewer();
-      break;
-    default:
-      await logger.log('ERROR', `Unknown tool: ${toolName}`);
-      result = JSON.stringify({ success: false, error: "Unknown tool" });
+  try {
+    switch (toolName) {
+      case "execute_command":
+        await logger.logVerbose('COMMAND_START', 'Executing Command', {
+          'Command': args.command,
+          'Working Directory': args.working_directory || process.cwd()
+        });
+        result = await executeCommand(args.command, args.working_directory);
+        const cmdResult = JSON.parse(result);
+        await logger.logCommandExecution(args.command, args.working_directory || process.cwd(), cmdResult);
+        break;
+        
+      case "read_file":
+        await logger.logVerbose('FILE_READ_START', 'Reading File', {
+          'File Path': args.file_path
+        });
+        result = await readFile(args.file_path);
+        const readResult = JSON.parse(result);
+        await logger.logVerbose('FILE_READ_COMPLETE', 'File Read Complete', {
+          'File Path': args.file_path,
+          'Success': readResult.success,
+          'File Size': readResult.size || 'N/A',
+          'Content Preview': readResult.content ? readResult.content.substring(0, 200) + '...' : 'N/A'
+        });
+        break;
+        
+      case "write_file":
+        await logger.logVerbose('FILE_WRITE_START', 'Writing File', {
+          'File Path': args.file_path,
+          'Content Length': args.content?.length || 0,
+          'Content Preview': args.content ? args.content.substring(0, 200) + '...' : ''
+        });
+        result = await writeFile(args.file_path, args.content);
+        const writeResult = JSON.parse(result);
+        await logger.logVerbose('FILE_WRITE_COMPLETE', 'File Write Complete', {
+          'File Path': args.file_path,
+          'Success': writeResult.success,
+          'Bytes Written': writeResult.bytes_written || 'N/A'
+        });
+        break;
+        
+      case "list_directory":
+        await logger.logVerbose('DIRECTORY_LIST_START', 'Listing Directory', {
+          'Directory Path': args.directory_path || '.'
+        });
+        result = await listDirectory(args.directory_path);
+        const listResult = JSON.parse(result);
+        await logger.logVerbose('DIRECTORY_LIST_COMPLETE', 'Directory Listing Complete', {
+          'Directory Path': args.directory_path || '.',
+          'Success': listResult.success,
+          'Entry Count': listResult.entries?.length || 0,
+          'Entries': listResult.entries || []
+        });
+        break;
+        
+      case "get_cwd":
+        await logger.logVerbose('GET_CWD', 'Getting Current Working Directory', {});
+        result = getCurrentWorkingDirectory();
+        const cwdResult = JSON.parse(result);
+        await logger.logVerbose('GET_CWD_RESULT', 'Current Working Directory', {
+          'CWD': cwdResult.cwd
+        });
+        break;
+        
+      case "web_request":
+        await logger.logVerbose('WEB_REQUEST_START', 'Making Web Request', {
+          'Method': args.method || 'GET',
+          'URL': args.url,
+          'Headers': args.headers || {},
+          'Data': args.data || null,
+          'Follow Redirects': args.follow_redirects !== false
+        });
+        result = await makeWebRequest(args.url, args.method, args.headers, args.data, args.follow_redirects);
+        const webResult = JSON.parse(result);
+        await logger.logWebRequest(args.method || 'GET', args.url, args.headers || {}, webResult);
+        break;
+        
+      case "web_search":
+        await logger.logVerbose('WEB_SEARCH_START', 'Searching Web', {
+          'Query': args.query,
+          'Number of Results': args.num_results || 5
+        });
+        result = await searchWeb(args.query, args.num_results);
+        const searchResult = JSON.parse(result);
+        await logger.logVerbose('WEB_SEARCH_COMPLETE', 'Web Search Complete', {
+          'Query': args.query,
+          'Success': searchResult.success,
+          'Results Found': searchResult.total_results || 0,
+          'Results': searchResult.results || []
+        });
+        break;
+        
+      case "browse_website":
+        await logger.logVerbose('BROWSE_WEBSITE_START', 'Browsing Website', {
+          'URL': args.url,
+          'Extract Links': args.extract_links || false,
+          'Extract Forms': args.extract_forms || false,
+          'Extract Scripts': args.extract_scripts || false,
+          'User Agent': args.user_agent || 'default'
+        });
+        result = await browseWebsite(args.url, args.extract_links, args.extract_forms, args.extract_scripts, args.user_agent);
+        const browseResult = JSON.parse(result);
+        await logger.logVerbose('BROWSE_WEBSITE_COMPLETE', 'Website Browse Complete', {
+          'URL': args.url,
+          'Success': browseResult.success,
+          'Status Code': browseResult.status_code || 'N/A',
+          'Links Found': browseResult.links?.length || 0,
+          'Forms Found': browseResult.forms?.length || 0,
+          'Scripts Found': browseResult.scripts?.length || 0,
+          'Title': browseResult.title || 'N/A'
+        });
+        break;
+        
+      case "analyze_javascript":
+        await logger.logVerbose('JS_ANALYSIS_START', 'Analyzing JavaScript', {
+          'URL': args.url,
+          'Search Patterns': args.search_patterns || 'default'
+        });
+        result = await analyzeJavaScript(args.url, args.search_patterns);
+        const jsResult = JSON.parse(result);
+        await logger.logVerbose('JS_ANALYSIS_COMPLETE', 'JavaScript Analysis Complete', {
+          'URL': args.url,
+          'Success': jsResult.success,
+          'Endpoints Found': jsResult.endpoints?.length || 0
+        });
+        break;
+        
+      case "probe_api_endpoints":
+        await logger.logVerbose('API_PROBE_START', 'Probing API Endpoints', {
+          'Base URL': args.base_url,
+          'Custom Paths': args.paths || 'using defaults'
+        });
+        result = await probeApiEndpoints(args.base_url, args.paths);
+        const probeResult = JSON.parse(result);
+        await logger.logVerbose('API_PROBE_COMPLETE', 'API Endpoint Probe Complete', {
+          'Base URL': args.base_url,
+          'Success': probeResult.success,
+          'Paths Tested': probeResult.total_paths_tested || 0,
+          'Accessible Endpoints': probeResult.accessible_endpoints || 0,
+          'Likely API Endpoints': probeResult.likely_api_endpoints || 0
+        });
+        break;
+        
+      case "project_create":
+        await logger.logVerbose('PROJECT_CREATE_START', 'Creating Project', {
+          'Project Name': args.project_name,
+          'Target': args.target,
+          'Description': args.description || 'N/A'
+        });
+        result = await handleProjectCreate(args);
+        await logger.logVerbose('PROJECT_CREATE_COMPLETE', 'Project Creation Complete', {
+          'Project Name': args.project_name,
+          'Result': JSON.parse(result)
+        });
+        break;
+        
+      case "project_load":
+        await logger.logVerbose('PROJECT_LOAD_START', 'Loading Project', {
+          'Project Name': args.project_name
+        });
+        result = await handleProjectLoad(args);
+        await logger.logVerbose('PROJECT_LOAD_COMPLETE', 'Project Load Complete', {
+          'Project Name': args.project_name,
+          'Result': JSON.parse(result)
+        });
+        break;
+        
+      case "project_list":
+        await logger.logVerbose('PROJECT_LIST', 'Listing Projects', {});
+        result = await handleProjectList();
+        break;
+        
+      case "project_status":
+        await logger.logVerbose('PROJECT_STATUS', 'Getting Project Status', {});
+        result = await handleProjectStatus();
+        break;
+        
+      case "scope_add":
+        await logger.logVerbose('SCOPE_ADD_START', 'Adding Scope Rule', {
+          'Pattern': args.pattern,
+          'Type': args.type
+        });
+        result = await handleScopeAdd(args);
+        await logger.logVerbose('SCOPE_ADD_COMPLETE', 'Scope Rule Added', {
+          'Pattern': args.pattern,
+          'Result': JSON.parse(result)
+        });
+        break;
+        
+      case "scope_list":
+        await logger.logVerbose('SCOPE_LIST', 'Listing Scope Rules', {});
+        result = await handleScopeList();
+        break;
+        
+      case "sitemap_view":
+        await logger.logVerbose('SITEMAP_VIEW', 'Viewing Site Map', {});
+        result = await handleSitemapView();
+        break;
+        
+      case "discover_content":
+        await logger.logVerbose('CONTENT_DISCOVERY_START', 'Starting Content Discovery', {
+          'Base URL': args.base_url,
+          'Wordlist': args.wordlist || 'default',
+          'Extensions': args.extensions || 'default'
+        });
+        result = await handleContentDiscovery(args);
+        const discoverResult = JSON.parse(result);
+        await logger.logVerbose('CONTENT_DISCOVERY_COMPLETE', 'Content Discovery Complete', {
+          'Base URL': args.base_url,
+          'Success': discoverResult.success,
+          'Discovered Paths': discoverResult.discovered?.length || 0
+        });
+        break;
+        
+      case "vuln_log":
+        await logger.logVerbose('VULN_LOG_START', 'Logging Vulnerability', {
+          'Title': args.title,
+          'Severity': args.severity,
+          'Type': args.vulnerability_type
+        });
+        result = await handleVulnLog(args);
+        await logger.logVerbose('VULN_LOG_COMPLETE', 'Vulnerability Logged', {
+          'Title': args.title,
+          'Result': JSON.parse(result)
+        });
+        break;
+        
+      case "vuln_list":
+        await logger.logVerbose('VULN_LIST', 'Listing Vulnerabilities', {
+          'Severity Filter': args.severity || 'none',
+          'Status Filter': args.status || 'none'
+        });
+        result = await handleVulnList(args);
+        break;
+        
+      case "vuln_update":
+        await logger.logVerbose('VULN_UPDATE_START', 'Updating Vulnerability', {
+          'Vulnerability ID': args.vuln_id,
+          'New Status': args.status,
+          'Notes': args.notes || 'N/A'
+        });
+        result = await handleVulnUpdate(args);
+        await logger.logVerbose('VULN_UPDATE_COMPLETE', 'Vulnerability Updated', {
+          'Vulnerability ID': args.vuln_id,
+          'Result': JSON.parse(result)
+        });
+        break;
+        
+      case "evidence_store":
+        await logger.logVerbose('EVIDENCE_STORE_START', 'Storing Evidence', {
+          'Vulnerability ID': args.vulnerability_id,
+          'Method': args.method,
+          'URL': args.url,
+          'Response Code': args.response_code
+        });
+        result = await handleEvidenceStore(args);
+        await logger.logVerbose('EVIDENCE_STORE_COMPLETE', 'Evidence Stored', {
+          'Vulnerability ID': args.vulnerability_id,
+          'Result': JSON.parse(result)
+        });
+        break;
+        
+      case "database_viewer":
+        await logger.logVerbose('DATABASE_VIEWER', 'Launching Database Viewer', {});
+        result = await handleDatabaseViewer();
+        break;
+        
+      default:
+        await logger.logVerbose('ERROR', 'Unknown Tool Called', {
+          'Tool Name': toolName,
+          'Arguments': args
+        });
+        result = JSON.stringify({ success: false, error: "Unknown tool" });
+    }
+    
+    // Log successful tool completion
+    const duration = Date.now() - startTime;
+    await logger.logToolResult(toolName, result, duration);
+    
+    // Simple confirmation for chat window
+    if (ENABLE_FORMATTING) {
+      console.log(`${TerminalFormatter.formatMarkdown('**✅ Tool completed**')} (${duration}ms)\n`);
+    } else {
+      console.log(`✅ Tool completed (${duration}ms)\n`);
+    }
+    
+    return result;
+    
+  } catch (error) {
+    // Log error details
+    const duration = Date.now() - startTime;
+    await logger.logToolError(toolName, error, duration);
+    
+    // Simple error message for chat window
+    console.log(`❌ Tool failed: ${error.message}\n`);
+    
+    return JSON.stringify({
+      success: false,
+      error: error.message,
+      tool: toolName
+    });
   }
-  
-  // Log tool result
-  const parsedResult = JSON.parse(result);
-  await logger.log('TOOL_RESULT', `${toolName} completed`, {
-    success: parsedResult.success,
-    error: parsedResult.error || null
-  });
-  
-  if (ENABLE_FORMATTING) {
-    console.log(`${TerminalFormatter.formatMarkdown('**✅ Tool result:**')} ${result.substring(0, 200)}${result.length > 200 ? "..." : ""}\n`);
-  } else {
-    console.log(`✅ Tool result: ${result.substring(0, 200)}${result.length > 200 ? "..." : ""}\n`);
-  }
-  return result;
 }
 
 // ============ Project Management Tool Handlers ============
