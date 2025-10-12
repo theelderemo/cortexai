@@ -104,6 +104,7 @@ Ethical guidelines and responsible practices for penetration testing with Cortex
 - Vendor has released patch
 - Users need protection information
 - Coordinated with vendor
+- Vendor is uncooperative, or denying claims
 
 **What to Disclose**:
 - Vulnerability description
