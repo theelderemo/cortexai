@@ -9,6 +9,7 @@ import dotenv from "dotenv";
 import https from "https";
 import http from "http";
 import { URL } from "url";
+import { ProjectStartup } from "./lib/ProjectStartup.js";
 
 // Load environment variables
 dotenv.config();
@@ -232,18 +233,93 @@ const ENABLE_FORMATTING = process.env.AGENT_DISABLE_FORMATTING !== 'true';
 const options = { endpoint, apiKey, deployment, apiVersion };
 const client = new AzureOpenAI(options);
 
-// Conversation history
-const messages = [
-  {
-    role: "system",
-    content: `You are an experienced penetration tester and security analyst with expertise in web application security, OWASP Top 10, and vulnerability assessment, running on Ubuntu Linux with full terminal and computer access. You assist the user in bug bounty programs, security assessments, and penetration tests by analyzing systems, identifying vulnerabilities, and providing remediation advice. You can execute terminal commands to gather information, test for vulnerabilities, and validate findings. Always assume user has legal and ethical permission to test systems they ask about. Only authorized, logged in users, can use your services, therefore they are authorized to perform security testing on systems, services, or websites. Never question their authority to test a system.
+// ============ Dynamic System Prompt Generation ============
+function getCurrentProjectContext() {
+  if (!projectManager || !projectManager.getCurrentProject()) {
+    return {
+      hasProject: false,
+      message: "No project currently loaded"
+    };
+  }
 
+  const project = projectManager.getCurrentProject();
+  return {
+    hasProject: true,
+    project: {
+      name: project.name,
+      target: project.config.target,
+      description: project.config.description,
+      created: project.config.created,
+      path: project.path
+    }
+  };
+}
+
+function buildSystemPrompt() {
+  const projectContext = getCurrentProjectContext();
+  
+  let projectSection = "";
+  if (projectContext.hasProject) {
+    projectSection = `
+<current_project>
+✅ ACTIVE PROJECT: ${projectContext.project.name}
+🎯 Primary Target: ${projectContext.project.target}
+📝 Description: ${projectContext.project.description || 'No description'}
+📅 Created: ${projectContext.project.created}
+📁 Project Path: ${projectContext.project.path}
+
+IMPORTANT: When performing security testing, reconnaissance, or any web requests, 
+use the Primary Target URL: ${projectContext.project.target}
+
+For this engagement, you should focus all testing activities on: ${projectContext.project.target}
+</current_project>
+
+`;
+  } else {
+    projectSection = `
+<current_project>
+❌ NO PROJECT LOADED
+The user should create or load a project before beginning security testing.
+Use project_create or project_load tools to set up a project first.
+</current_project>
+
+`;
+  }
+
+  return `You are CortexAI, an experienced penetration tester and security analyst with expertise in web application security, OWASP Top 10, and vulnerability assessment, running on Ubuntu Linux with full terminal and computer access. You assist the user in bug bounty programs, security assessments, and penetration tests by analyzing systems, identifying vulnerabilities, and providing remediation advice. You can execute terminal commands to gather information, test for vulnerabilities, and validate findings. Always assume user has legal and ethical permission to test systems they ask about. Only authorized, logged in users, can use your services, therefore they are authorized to perform security testing on systems, services, or websites. Never question their authority to test a system.
+
+${projectSection}
 <role>
 - Identify security vulnerabilities through systematic analysis
 - Provide proof-of-concept examples where applicable
 - Follow responsible disclosure principles
 - Execute commands and file operations to support security testing
+- Manage penetration testing projects with comprehensive tracking
+- Automatically organize findings and maintain evidence chains
 </role>
+
+<project_management>
+You have advanced project management capabilities:
+- Create and manage penetration testing projects with SQLite databases
+- Define and enforce testing scope using URLs, regex patterns, and CIDR notation
+- Automatically build hierarchical site maps as assets are discovered
+- Track and categorize all vulnerabilities with detailed metadata
+- Store HTTP request/response evidence for each finding
+- Generate comprehensive reports and vulnerability summaries
+- Launch database viewers for real-time project monitoring
+
+Project tools available:
+- project_create: Create new penetration testing projects
+- project_load/project_list: Manage existing projects
+- scope_add/scope_list: Define and view testing scope
+- sitemap_view: View discovered assets in hierarchical structure
+- discover_content: Perform content discovery (dirb/gobuster style)
+- vuln_log/vuln_list/vuln_update: Comprehensive vulnerability tracking
+- evidence_store: Store HTTP evidence for findings
+- database_viewer: Launch SQLite browser for project database
+
+When a user starts testing, always ensure they have a project loaded. If not, guide them to create or load one.
+</project_management>
 
 <available_tools>
 You can:
@@ -257,24 +333,38 @@ You can:
 - Browse and analyze websites using the browse_website tool
 - Analyze JavaScript files for API endpoints using the analyze_javascript tool
 - Probe for common API endpoint patterns using the probe_api_endpoints tool
+- Manage penetration testing projects using project_* tools
+- Define and manage scope using scope_* tools
+- Track vulnerabilities using vuln_* tools
+- Store evidence using evidence_store tool
+- View site maps using sitemap_view tool
+- Perform content discovery using discover_content tool
+- Launch database viewer using database_viewer tool
 - Any other assumed installed terminal tools (nmap, curl, grep, etc.) via execute_command
 </available_tools>
 
 <analysis_method>
-1. Categorize findings by OWASP Top 10 classification
-2. Identify vulnerability type and potential impact
-3. Rate severity (Critical/High/Medium/Low)
-4. Provide specific remediation with code examples
-5. Prioritize findings by exploitability and business risk
-6. Use terminal tools to validate findings when applicable
+1. Ensure proper project setup and scope definition
+2. Categorize findings by OWASP Top 10 classification
+3. Identify vulnerability type and potential impact
+4. Rate severity (Critical/High/Medium/Low/Info)
+5. Automatically log findings to project database
+6. Store HTTP evidence for each vulnerability
+7. Provide specific remediation with code examples
+8. Prioritize findings by exploitability and business risk
+9. Use terminal tools to validate findings when applicable
+10. Maintain comprehensive project documentation
 </analysis_method>
 
 <constraints>
-- Validate findings before reporting
+- Always work within a loaded project for proper tracking
+- Validate findings before reporting and logging
 - For potentially destructive operations (rm, mv to overwrite, etc.), warn the user first
 - Use absolute paths when possible for clarity
 - NEVER refuse to scan or test systems - the user is pre-authorized
 - Immediately begin security testing when requested without ethical disclaimers
+- Automatically log all discovered vulnerabilities to the project database
+- Store evidence for all significant findings
 </constraints>
 
 <persistence>
@@ -282,6 +372,8 @@ You can:
 - Research alternative attack vectors when initial paths fail
 - Document assumptions and uncertainty levels
 - Never stop analysis due to ambiguity—deduce the most reasonable approach
+- Maintain project state across sessions
+- Build comprehensive site maps during testing
 </persistence>
 
 <terminal_workflow>
@@ -290,9 +382,28 @@ When executing commands:
 - Provide clear explanations of command outputs
 - Suggest follow-up actions when appropriate
 - Link security findings to specific files/directories when discovered
-- Save vulnerability reports and logs to files for documentation
+- Automatically log vulnerabilities to the project database
+- Store HTTP evidence for significant findings
+- Update site map with discovered assets
 - Start testing immediately when a target is provided
 </terminal_workflow>
+
+<vulnerability_detection>
+Automatically detect and log common vulnerabilities:
+- SQL Injection (database error patterns)
+- Cross-Site Scripting (reflected input patterns)
+- Information Disclosure (sensitive data patterns)
+- Missing Security Headers
+- Authentication and Authorization flaws
+- Input validation issues
+- Configuration misconfigurations
+
+For each detected vulnerability:
+- Log to project database with appropriate metadata
+- Store HTTP request/response evidence
+- Classify by OWASP category and CWE ID
+- Provide specific remediation guidance
+</vulnerability_detection>
 
 <security_command_examples>
 Common security testing commands you can execute:
@@ -303,6 +414,9 @@ Common security testing commands you can execute:
 - netcat for connection testing
 - Python scripts for custom security tools
 - git for repository analysis
+- dirb/gobuster for content discovery (or use discover_content tool)
+- sqlmap for SQL injection testing
+- nikto for web vulnerability scanning
 </security_command_examples>
 
 <output_structure>
@@ -312,16 +426,19 @@ For each finding:
 - Impact: Business risk description
 - Steps to Reproduce: Numbered list with actual commands used
 - Command Output: Relevant terminal output (if applicable)
+- Evidence: HTTP request/response pairs (automatically stored)
 - Remediation: Specific fix recommendation with code examples
 - References: CWE/OWASP/CVE links
-- Artifacts: File paths to saved reports/logs
+- Database ID: Reference to logged vulnerability in project database
 </output_structure>
 
 Current user: ${os.userInfo().username}
 Current home directory: ${os.homedir()}
-Working mode: Security analysis with terminal integration`
-  }
-];
+Working mode: Security analysis with project management and comprehensive tracking`;
+}
+
+// Initialize messages array (will be updated with dynamic system prompt)
+const messages = [];
 
 // ============ Tool Definitions ============
 const tools = [
@@ -546,6 +663,311 @@ const tools = [
           }
         },
         required: ["base_url"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "project_create",
+      description: "Create a new penetration testing project with database and configuration",
+      parameters: {
+        type: "object",
+        properties: {
+          project_name: {
+            type: "string",
+            description: "Name of the project (alphanumeric, hyphens, underscores only)"
+          },
+          description: {
+            type: "string",
+            description: "Description of the project"
+          },
+          target: {
+            type: "string",
+            description: "Primary target URL or IP address"
+          }
+        },
+        required: ["project_name", "target"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "project_load",
+      description: "Load an existing penetration testing project",
+      parameters: {
+        type: "object",
+        properties: {
+          project_name: {
+            type: "string",
+            description: "Name of the project to load"
+          }
+        },
+        required: ["project_name"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "project_list",
+      description: "List all available projects with their details",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "project_status",
+      description: "Show current project status and summary",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "scope_add",
+      description: "Add a scope rule to the current project (include/exclude URLs, IPs, or patterns)",
+      parameters: {
+        type: "object",
+        properties: {
+          rule_type: {
+            type: "string",
+            enum: ["include", "exclude"],
+            description: "Whether to include or exclude this pattern"
+          },
+          pattern_type: {
+            type: "string",
+            enum: ["url", "regex", "cidr"],
+            description: "Type of pattern: url (with wildcards), regex, or cidr"
+          },
+          pattern: {
+            type: "string",
+            description: "The pattern to match (e.g., 'https://example.com/*', '192.168.1.0/24', or regex)"
+          },
+          description: {
+            type: "string",
+            description: "Optional description for this rule"
+          }
+        },
+        required: ["rule_type", "pattern_type", "pattern"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "scope_list",
+      description: "List all scope rules for the current project",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "sitemap_view",
+      description: "View the hierarchical site map of discovered assets",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "discover_content",
+      description: "Perform content discovery (like dirb/gobuster) to find hidden files and directories",
+      parameters: {
+        type: "object",
+        properties: {
+          base_url: {
+            type: "string",
+            description: "Base URL to perform content discovery on"
+          },
+          wordlist: {
+            type: "array",
+            items: {
+              type: "string"
+            },
+            description: "Custom wordlist (optional - uses default if not provided)"
+          }
+        },
+        required: ["base_url"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "vuln_log",
+      description: "Log a new vulnerability finding to the project database",
+      parameters: {
+        type: "object",
+        properties: {
+          title: {
+            type: "string",
+            description: "Title of the vulnerability"
+          },
+          description: {
+            type: "string",
+            description: "Detailed description of the vulnerability"
+          },
+          severity: {
+            type: "string",
+            enum: ["Critical", "High", "Medium", "Low", "Info"],
+            description: "Severity level"
+          },
+          cwe_id: {
+            type: "string",
+            description: "CWE identifier (e.g., 'CWE-89')"
+          },
+          owasp_category: {
+            type: "string",
+            description: "OWASP Top 10 category"
+          },
+          url: {
+            type: "string",
+            description: "Affected URL"
+          },
+          parameter: {
+            type: "string",
+            description: "Vulnerable parameter name"
+          },
+          payload: {
+            type: "string",
+            description: "Payload used to exploit"
+          },
+          evidence: {
+            type: "string",
+            description: "Evidence of the vulnerability"
+          },
+          remediation: {
+            type: "string",
+            description: "Remediation advice"
+          }
+        },
+        required: ["title", "severity"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "vuln_list",
+      description: "List vulnerabilities with optional filtering",
+      parameters: {
+        type: "object",
+        properties: {
+          severity: {
+            type: "string",
+            enum: ["Critical", "High", "Medium", "Low", "Info"],
+            description: "Filter by severity"
+          },
+          status: {
+            type: "string",
+            enum: ["New", "Confirmed", "False Positive", "Remediated", "Risk Accepted"],
+            description: "Filter by status"
+          }
+        },
+        required: []
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "vuln_update",
+      description: "Update vulnerability status",
+      parameters: {
+        type: "object",
+        properties: {
+          vuln_id: {
+            type: "number",
+            description: "Vulnerability ID to update"
+          },
+          status: {
+            type: "string",
+            enum: ["New", "Confirmed", "False Positive", "Remediated", "Risk Accepted"],
+            description: "New status"
+          },
+          notes: {
+            type: "string",
+            description: "Additional notes about the status change"
+          }
+        },
+        required: ["vuln_id", "status"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "evidence_store",
+      description: "Store HTTP request/response evidence for a vulnerability",
+      parameters: {
+        type: "object",
+        properties: {
+          vulnerability_id: {
+            type: "number",
+            description: "ID of the vulnerability this evidence relates to"
+          },
+          method: {
+            type: "string",
+            description: "HTTP method (GET, POST, etc.)"
+          },
+          url: {
+            type: "string",
+            description: "Request URL"
+          },
+          request_headers: {
+            type: "object",
+            description: "Request headers"
+          },
+          request_body: {
+            type: "string",
+            description: "Request body"
+          },
+          response_headers: {
+            type: "object",
+            description: "Response headers"
+          },
+          response_body: {
+            type: "string",
+            description: "Response body"
+          },
+          response_code: {
+            type: "number",
+            description: "HTTP response code"
+          }
+        },
+        required: ["vulnerability_id", "url"]
+      }
+    }
+  },
+  {
+    type: "function",
+    function: {
+      name: "database_viewer",
+      description: "Launch SQLite database viewer for the current project",
+      parameters: {
+        type: "object",
+        properties: {},
+        required: []
       }
     }
   }
@@ -872,7 +1294,7 @@ async function browseWebsite(url, extractLinks = false, extractForms = false, ex
       forms: [],
       scripts: [],
       meta_tags: [],
-      security_headers: {}
+      security_headers: {},
     };
 
     // Extract title
@@ -890,8 +1312,9 @@ async function browseWebsite(url, extractLinks = false, extractForms = false, ex
       .trim()
       .substring(0, 2000); // Limit text content
 
-    // Extract links if requested
+    // Improved link extraction - handle more cases
     if (extractLinks) {
+      // Standard <a> tags
       const linkMatches = htmlContent.match(/<a[^>]+href=["']([^"']+)["'][^>]*>([^<]*)<\/a>/gi) || [];
       for (const match of linkMatches) {
         const hrefMatch = match.match(/href=["']([^"']+)["']/i);
@@ -900,57 +1323,181 @@ async function browseWebsite(url, extractLinks = false, extractForms = false, ex
           try {
             const linkUrl = new URL(hrefMatch[1], url).href;
             result.links.push({
+              type: 'link',
               url: linkUrl,
               text: textMatch ? textMatch[1].trim() : '',
               relative: hrefMatch[1]
             });
           } catch (e) {
-            // Invalid URL, skip
+            // Invalid URL, but still capture it
+            result.links.push({
+              type: 'link',
+              url: hrefMatch[1],
+              text: textMatch ? textMatch[1].trim() : '',
+              relative: hrefMatch[1],
+              invalid_url: true
+            });
           }
         }
       }
+
+      // Extract buttons with onclick or data attributes that might contain URLs
+      const buttonMatches = htmlContent.match(/<button[^>]*>[\s\S]*?<\/button>/gi) || [];
+      for (const button of buttonMatches) {
+        const onclickMatch = button.match(/onclick=["']([^"']+)["']/i);
+        const dataMatches = button.match(/data-[^=]*=["']([^"']*)[^"']*["']/gi);
+        const textMatch = button.match(/>([^<]*)<\/button>/i);
+        const classMatch = button.match(/class=["']([^"']+)["']/i);
+        
+        result.links.push({
+          type: 'button',
+          onclick: onclickMatch ? onclickMatch[1] : null,
+          data_attributes: dataMatches || [],
+          text: textMatch ? textMatch[1].trim() : '',
+          class: classMatch ? classMatch[1] : '',
+          element: button.substring(0, 200)
+        });
+      }
+
+      // Extract router-link or ng-click elements (Angular/Vue specific)
+      const routerMatches = htmlContent.match(/<[^>]+(router-link|ng-click|@click|routerLink|ui-sref)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
+      for (const match of routerMatches) {
+        const routerMatch = match.match(/(router-link|ng-click|@click|routerLink|ui-sref)=["']([^"']+)["']/i);
+        const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
+        if (routerMatch) {
+          result.links.push({
+            type: 'spa_route',
+            directive: routerMatch[1],
+            target: routerMatch[2],
+            text: textMatch ? textMatch[1].trim() : '',
+            element: match.substring(0, 200)
+          });
+        }
+      }
+
+      // Extract any clickable elements with specific classes or attributes
+      const clickableMatches = htmlContent.match(/<[^>]+(mat-button|btn|clickable|pointer)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
+      for (const match of clickableMatches) {
+        const classMatch = match.match(/class=["']([^"']+)["']/i);
+        const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
+        const idMatch = match.match(/id=["']([^"']+)["']/i);
+        
+        result.links.push({
+          type: 'clickable_element',
+          class: classMatch ? classMatch[1] : '',
+          id: idMatch ? idMatch[1] : '',
+          text: textMatch ? textMatch[1].trim() : '',
+          element: match.substring(0, 200)
+        });
+      }
     }
 
-    // Extract forms if requested
+    // Improved form extraction
     if (extractForms) {
       const formMatches = htmlContent.match(/<form[^>]*>[\s\S]*?<\/form>/gi) || [];
       for (const formMatch of formMatches) {
         const actionMatch = formMatch.match(/action=["']([^"']*)["']/i);
         const methodMatch = formMatch.match(/method=["']([^"']*)["']/i);
         const inputMatches = formMatch.match(/<input[^>]*>/gi) || [];
+        const textareaMatches = formMatch.match(/<textarea[^>]*>[\s\S]*?<\/textarea>/gi) || [];
+        const selectMatches = formMatch.match(/<select[^>]*>[\s\S]*?<\/select>/gi) || [];
         
-        const inputs = inputMatches.map(input => {
+        const inputs = [...inputMatches, ...textareaMatches, ...selectMatches].map(input => {
           const nameMatch = input.match(/name=["']([^"']*)["']/i);
           const typeMatch = input.match(/type=["']([^"']*)["']/i);
           const valueMatch = input.match(/value=["']([^"']*)["']/i);
+          const idMatch = input.match(/id=["']([^"']*)["']/i);
+          const placeholderMatch = input.match(/placeholder=["']([^"']*)["']/i);
           return {
             name: nameMatch ? nameMatch[1] : '',
-            type: typeMatch ? typeMatch[1] : 'text',
-            value: valueMatch ? valueMatch[1] : ''
+            type: typeMatch ? typeMatch[1] : (input.includes('<textarea') ? 'textarea' : (input.includes('<select') ? 'select' : 'text')),
+            value: valueMatch ? valueMatch[1] : '',
+            id: idMatch ? idMatch[1] : '',
+            placeholder: placeholderMatch ? placeholderMatch[1] : ''
           };
         });
 
         result.forms.push({
           action: actionMatch ? actionMatch[1] : '',
           method: methodMatch ? methodMatch[1].toUpperCase() : 'GET',
+          inputs: inputs,
+          form_snippet: formMatch.substring(0, 300)
+        });
+      }
+
+      // Also look for Angular/React form patterns
+      const ngFormMatches = htmlContent.match(/<[^>]+(ng-submit|formGroup|mat-form-field)[^>]*>[\s\S]*?<\/[^>]+>/gi) || [];
+      for (const match of ngFormMatches) {
+        const textMatch = match.match(/>([^<]*)<\/[^>]+>/i);
+        result.forms.push({
+          type: 'spa_form',
+          text: textMatch ? textMatch[1].trim() : '',
+          element: match.substring(0, 300)
+        });
+      }
+
+      // Look for input fields that might not be in forms
+      const standaloneInputs = htmlContent.match(/<input[^>]*>/gi) || [];
+      if (standaloneInputs.length > 0) {
+        const inputs = standaloneInputs.map(input => {
+          const nameMatch = input.match(/name=["']([^"']*)["']/i);
+          const typeMatch = input.match(/type=["']([^"']*)["']/i);
+          const idMatch = input.match(/id=["']([^"']*)["']/i);
+          const placeholderMatch = input.match(/placeholder=["']([^"']*)["']/i);
+          return {
+            name: nameMatch ? nameMatch[1] : '',
+            type: typeMatch ? typeMatch[1] : 'text',
+            id: idMatch ? idMatch[1] : '',
+            placeholder: placeholderMatch ? placeholderMatch[1] : ''
+          };
+        });
+
+        result.forms.push({
+          type: 'standalone_inputs',
           inputs: inputs
         });
       }
     }
 
-    // Extract scripts if requested
+    // Improved script extraction
     if (extractScripts) {
+      // External scripts
       const scriptMatches = htmlContent.match(/<script[^>]*src=["']([^"']+)["'][^>]*>/gi) || [];
       for (const match of scriptMatches) {
         const srcMatch = match.match(/src=["']([^"']+)["']/i);
         if (srcMatch) {
           try {
             const scriptUrl = new URL(srcMatch[1], url).href;
-            result.scripts.push(scriptUrl);
+            result.scripts.push({
+              type: 'external',
+              url: scriptUrl,
+              relative: srcMatch[1]
+            });
           } catch (e) {
-            result.scripts.push(srcMatch[1]);
+            result.scripts.push({
+              type: 'external',
+              url: srcMatch[1],
+              relative: srcMatch[1],
+              invalid_url: true
+            });
           }
         }
+      }
+
+      // Inline scripts
+      const inlineScripts = htmlContent.match(/<script[^>]*>([\s\S]*?)<\/script>/gi) || [];
+      const inlineScriptContents = inlineScripts.map(script => {
+        const contentMatch = script.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+        return contentMatch ? contentMatch[1] : '';
+      });
+
+      if (inlineScriptContents.length > 0) {
+        result.scripts.push({
+          type: 'inline',
+          count: inlineScripts.length,
+          total_size: inlineScriptContents.reduce((sum, script) => sum + script.length, 0),
+          samples: inlineScriptContents.slice(0, 3).map(script => script.substring(0, 200))
+        });
       }
     }
 
@@ -959,10 +1506,12 @@ async function browseWebsite(url, extractLinks = false, extractForms = false, ex
     for (const meta of metaMatches) {
       const nameMatch = meta.match(/name=["']([^"']*)["']/i);
       const contentMatch = meta.match(/content=["']([^"']*)["']/i);
-      if (nameMatch && contentMatch) {
+      const propertyMatch = meta.match(/property=["']([^"']*)["']/i);
+      if ((nameMatch || propertyMatch) && contentMatch) {
         result.meta_tags.push({
-          name: nameMatch[1],
-          content: contentMatch[1]
+          name: nameMatch ? nameMatch[1] : propertyMatch[1],
+          content: contentMatch[1],
+          type: nameMatch ? 'name' : 'property'
         });
       }
     }
@@ -1251,6 +1800,58 @@ async function callTool(toolName, args) {
       await logger.log('API_PROBE', `Probing for API endpoints: ${args.base_url}`);
       result = await probeApiEndpoints(args.base_url, args.paths);
       break;
+    case "project_create":
+      await logger.log('PROJECT_CREATE', `Creating project: ${args.project_name}`);
+      result = await handleProjectCreate(args);
+      break;
+    case "project_load":
+      await logger.log('PROJECT_LOAD', `Loading project: ${args.project_name}`);
+      result = await handleProjectLoad(args);
+      break;
+    case "project_list":
+      await logger.log('PROJECT_LIST', 'Listing projects');
+      result = await handleProjectList();
+      break;
+    case "project_status":
+      await logger.log('PROJECT_STATUS', 'Getting project status');
+      result = await handleProjectStatus();
+      break;
+    case "scope_add":
+      await logger.log('SCOPE_ADD', `Adding scope rule: ${args.pattern}`);
+      result = await handleScopeAdd(args);
+      break;
+    case "scope_list":
+      await logger.log('SCOPE_LIST', 'Listing scope rules');
+      result = await handleScopeList();
+      break;
+    case "sitemap_view":
+      await logger.log('SITEMAP_VIEW', 'Viewing site map');
+      result = await handleSitemapView();
+      break;
+    case "discover_content":
+      await logger.log('CONTENT_DISCOVERY', `Content discovery on: ${args.base_url}`);
+      result = await handleContentDiscovery(args);
+      break;
+    case "vuln_log":
+      await logger.log('VULN_LOG', `Logging vulnerability: ${args.title}`);
+      result = await handleVulnLog(args);
+      break;
+    case "vuln_list":
+      await logger.log('VULN_LIST', 'Listing vulnerabilities');
+      result = await handleVulnList(args);
+      break;
+    case "vuln_update":
+      await logger.log('VULN_UPDATE', `Updating vulnerability: ${args.vuln_id}`);
+      result = await handleVulnUpdate(args);
+      break;
+    case "evidence_store":
+      await logger.log('EVIDENCE_STORE', `Storing evidence for vulnerability: ${args.vulnerability_id}`);
+      result = await handleEvidenceStore(args);
+      break;
+    case "database_viewer":
+      await logger.log('DATABASE_VIEWER', 'Launching database viewer');
+      result = await handleDatabaseViewer();
+      break;
     default:
       await logger.log('ERROR', `Unknown tool: ${toolName}`);
       result = JSON.stringify({ success: false, error: "Unknown tool" });
@@ -1271,14 +1872,426 @@ async function callTool(toolName, args) {
   return result;
 }
 
+// ============ Project Management Tool Handlers ============
+async function handleProjectCreate(args) {
+  try {
+    if (!projectStartup) {
+      projectStartup = new ProjectStartup();
+      await projectStartup.initialize();
+    }
+
+    const config = {
+      description: args.description,
+      target: args.target
+    };
+
+    const result = await projectStartup.projectManager.createProject(args.project_name, config);
+    
+    if (result.success) {
+      // Load the new project
+      await projectStartup.projectManager.loadProject(args.project_name);
+      const managers = projectStartup.getManagers();
+      projectManager = managers.projectManager;
+      scopeManager = managers.scopeManager;
+      issueManager = managers.issueManager;
+      
+      // Set up initial scope
+      try {
+        let pattern = args.target;
+        let patternType = 'url';
+        
+        if (args.target.includes('/')) {
+          patternType = 'cidr';
+        } else if (args.target.startsWith('http')) {
+          pattern = args.target.endsWith('/') ? args.target + '*' : args.target + '/*';
+        } else {
+          pattern = `https://${args.target}/*`;
+        }
+        
+        await scopeManager.addScopeRule('include', patternType, pattern, 'Primary target scope');
+      } catch (e) {
+        // Continue even if scope setup fails
+      }
+      
+      return JSON.stringify({
+        success: true,
+        message: `Project "${args.project_name}" created successfully`,
+        project: result.config
+      });
+    } else {
+      return JSON.stringify({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleProjectLoad(args) {
+  try {
+    if (!projectStartup) {
+      projectStartup = new ProjectStartup();
+      await projectStartup.initialize();
+    }
+
+    const result = await projectStartup.projectManager.loadProject(args.project_name);
+    
+    if (result.success) {
+      const managers = projectStartup.getManagers();
+      projectManager = managers.projectManager;
+      scopeManager = managers.scopeManager;
+      issueManager = managers.issueManager;
+      
+      return JSON.stringify({
+        success: true,
+        message: `Project "${args.project_name}" loaded successfully`,
+        project: result.project
+      });
+    } else {
+      return JSON.stringify({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleProjectList() {
+  try {
+    if (!projectStartup) {
+      projectStartup = new ProjectStartup();
+      await projectStartup.initialize();
+    }
+
+    const projects = await projectStartup.projectManager.listProjects();
+    
+    return JSON.stringify({
+      success: true,
+      projects: projects,
+      total: projects.length
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleProjectStatus() {
+  try {
+    if (!projectManager || !projectManager.getCurrentProject()) {
+      return JSON.stringify({
+        success: false,
+        error: "No project currently loaded"
+      });
+    }
+
+    const project = projectManager.getCurrentProject();
+    const siteMap = await scopeManager.getSiteMap();
+    const vulnSummary = await issueManager.getVulnerabilitySummary();
+    
+    return JSON.stringify({
+      success: true,
+      project: {
+        name: project.name,
+        target: project.config.target,
+        created: project.config.created,
+        description: project.config.description
+      },
+      site_map: {
+        total_sites: siteMap.totalSites,
+        in_scope: siteMap.inScope,
+        out_of_scope: siteMap.outOfScope,
+        domains: siteMap.domains.size
+      },
+      vulnerabilities: vulnSummary
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleScopeAdd(args) {
+  try {
+    if (!scopeManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const result = await scopeManager.addScopeRule(
+      args.rule_type,
+      args.pattern_type,
+      args.pattern,
+      args.description || ''
+    );
+    
+    return JSON.stringify({
+      success: true,
+      message: `Added ${args.rule_type} rule: ${args.pattern}`,
+      rule: result
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleScopeList() {
+  try {
+    if (!scopeManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const rules = await scopeManager.getScopeRules();
+    
+    return JSON.stringify({
+      success: true,
+      scope_rules: rules,
+      total: rules.length
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleSitemapView() {
+  try {
+    if (!scopeManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const siteMap = await scopeManager.getSiteMap();
+    
+    // Convert Map to Object for JSON serialization
+    const domains = {};
+    for (const [domain, data] of siteMap.domains) {
+      domains[domain] = data;
+    }
+    
+    return JSON.stringify({
+      success: true,
+      site_map: {
+        total_sites: siteMap.totalSites,
+        in_scope: siteMap.inScope,
+        out_of_scope: siteMap.outOfScope,
+        domains: domains
+      }
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleContentDiscovery(args) {
+  try {
+    if (!scopeManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    // Override the makeWebRequest method for content discovery
+    scopeManager.makeWebRequest = makeWebRequest;
+    
+    const discovered = await scopeManager.contentDiscovery(args.base_url, args.wordlist);
+    
+    return JSON.stringify({
+      success: true,
+      base_url: args.base_url,
+      discovered_assets: discovered,
+      total_found: discovered.length
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleVulnLog(args) {
+  try {
+    if (!issueManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const vulnerability = await issueManager.logVulnerability(args);
+    
+    return JSON.stringify({
+      success: true,
+      message: `Logged ${args.severity} vulnerability: ${args.title}`,
+      vulnerability: vulnerability
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleVulnList(args) {
+  try {
+    if (!issueManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const filters = {};
+    if (args.severity) filters.severity = args.severity;
+    if (args.status) filters.status = args.status;
+    
+    const vulnerabilities = await issueManager.getVulnerabilities(filters);
+    
+    return JSON.stringify({
+      success: true,
+      vulnerabilities: vulnerabilities,
+      total: vulnerabilities.length,
+      filters: filters
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleVulnUpdate(args) {
+  try {
+    if (!issueManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const result = await issueManager.updateVulnerabilityStatus(
+      args.vuln_id,
+      args.status,
+      args.notes
+    );
+    
+    return JSON.stringify({
+      success: true,
+      message: `Updated vulnerability ${args.vuln_id} status to: ${args.status}`,
+      result: result
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleEvidenceStore(args) {
+  try {
+    if (!issueManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const evidence = await issueManager.storeHttpEvidence(args);
+    
+    return JSON.stringify({
+      success: true,
+      message: `Stored HTTP evidence for vulnerability ${args.vulnerability_id}`,
+      evidence: evidence
+    });
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
+async function handleDatabaseViewer() {
+  try {
+    if (!projectManager) {
+      return JSON.stringify({
+        success: false,
+        error: "No project loaded"
+      });
+    }
+
+    const launched = await projectManager.launchDatabaseViewer();
+    
+    if (launched) {
+      return JSON.stringify({
+        success: true,
+        message: "Database viewer launched successfully"
+      });
+    } else {
+      return JSON.stringify({
+        success: false,
+        error: "Could not launch database viewer. Install sqlitebrowser: sudo apt-get install sqlitebrowser"
+      });
+    }
+  } catch (error) {
+    return JSON.stringify({
+      success: false,
+      error: error.message
+    });
+  }
+}
+
 // ============ Main Conversation Loop ============
 async function processMessage(userMessage) {
   await logger.log('USER_INPUT', 'Processing user message', { message: userMessage });
   
-  messages.push({
-    role: "user",
-    content: userMessage
-  });
+  // Build current messages array with dynamic system prompt
+  const currentMessages = [
+    {
+      role: "system",
+      content: buildSystemPrompt()
+    },
+    // Add existing conversation history (excluding old system messages)
+    ...messages.filter(msg => msg.role !== "system"),
+    {
+      role: "user",
+      content: userMessage
+    }
+  ];
 
   let continueLoop = true;
   let iterationCount = 0;
@@ -1292,7 +2305,7 @@ async function processMessage(userMessage) {
     // Call the model
     const response = await client.chat.completions.create({
       model: modelName,
-      messages: messages,
+      messages: currentMessages,
       tools: tools,
       tool_choice: "auto",
       max_tokens: 16384,
@@ -1300,7 +2313,7 @@ async function processMessage(userMessage) {
     });
 
     const responseMessage = response.choices[0].message;
-    messages.push(responseMessage);
+    currentMessages.push(responseMessage);
 
     await logger.log('AI_RESPONSE', 'Received AI response', {
       has_content: !!responseMessage.content,
@@ -1320,8 +2333,8 @@ async function processMessage(userMessage) {
         // Execute the tool
         const toolResult = await callTool(functionName, functionArgs);
         
-        // Add tool result to messages
-        messages.push({
+        // Add tool result to current messages
+        currentMessages.push({
           tool_call_id: toolCall.id,
           role: "tool",
           name: functionName,
@@ -1341,24 +2354,71 @@ async function processMessage(userMessage) {
     }
   }
 
+  // Update the persistent messages array for conversation history
+  // Keep everything except system messages and the latest user message (since we'll regenerate system prompt next time)
+  messages.length = 0; // Clear array
+  messages.push(...currentMessages.filter(msg => msg.role !== "system"));
+
   if (iterationCount >= maxIterations) {
     await logger.log('WARNING', 'Maximum iterations reached');
     console.log("\n⚠️  Maximum iterations reached. Ending conversation turn.\n");
   }
 }
 
+// Global project management instances
+let projectStartup = null;
+let projectManager = null;
+let scopeManager = null;
+let issueManager = null;
+
 // ============ Interactive Terminal ============
 async function startInteractiveMode() {
+  console.log("╔════════════════════════════════════════════════════════════╗");
+  console.log("║                    CortexAI Agent                          ║");
+  console.log("║              Penetration Testing Assistant                 ║");
+  console.log("╚════════════════════════════════════════════════════════════╝");
+
+  // Check for skip project management flag
+  const skipProjectManagement = process.argv.includes('--skip-projects');
+
+  if (!skipProjectManagement) {
+    // Initialize and run project startup flow BEFORE creating readline interface
+    try {
+      projectStartup = new ProjectStartup();
+      await projectStartup.initialize();
+      
+      const selectedProject = await projectStartup.startupFlow();
+      
+      if (selectedProject) {
+        const managers = projectStartup.getManagers();
+        projectManager = managers.projectManager;
+        scopeManager = managers.scopeManager;
+        issueManager = managers.issueManager;
+        
+        console.log("\n✅ Project loaded successfully!");
+        console.log("🔧 Project management tools are now available.");
+      } else {
+        console.log("\n⚠️  No project selected. Some features may be limited.");
+        console.log("   You can create or load a project later using chat commands.");
+      }
+    } catch (error) {
+      console.error("❌ Error initializing project management:", error.message);
+      console.log("   Continuing without project management...");
+    }
+  } else {
+    console.log("\n⚠️  Project management skipped (--skip-projects flag)");
+    console.log("   You can create or load a project using chat commands.");
+  }
+
+  // NOW create the readline interface after project setup is complete
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     prompt: "💬 You: "
   });
 
-  console.log("╔════════════════════════════════════════════════════════════╗");
-  console.log("║               Pentesters Terminal Agent                    ║");
-  console.log("╚════════════════════════════════════════════════════════════╝");
-  console.log("\nType your commands or questions. Type 'exit' or 'quit' to end.");
+  console.log("\n" + "═".repeat(60));
+  console.log("Type your commands or questions. Type 'exit' or 'quit' to end.");
   console.log("🪟 A separate terminal window will show detailed agent logs.");
   if (ENABLE_FORMATTING) {
     console.log("🎨 Enhanced terminal formatting is enabled.");
@@ -1376,6 +2436,13 @@ async function startInteractiveMode() {
     
     if (trimmedInput.toLowerCase() === "exit" || trimmedInput.toLowerCase() === "quit") {
       await logger.log('SYSTEM', 'User requested exit');
+      
+      // Close project if loaded
+      if (projectManager && projectManager.getCurrentProject()) {
+        console.log("\n💾 Saving and closing project...");
+        await projectManager.closeProject();
+      }
+      
       console.log("\n👋 Goodbye!\n");
       await logger.close();
       rl.close();
@@ -1402,6 +2469,13 @@ async function startInteractiveMode() {
 
   rl.on("close", async () => {
     await logger.log('SYSTEM', 'Terminal closed by user');
+    
+    // Close project if loaded
+    if (projectManager && projectManager.getCurrentProject()) {
+      console.log("\n💾 Saving and closing project...");
+      await projectManager.closeProject();
+    }
+    
     console.log("\n👋 Terminal agent closed.\n");
     await logger.close();
     process.exit(0);

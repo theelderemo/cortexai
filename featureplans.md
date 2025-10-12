@@ -2,10 +2,9 @@
 ### Core Architecture & Project Management
 
 * **Project Management Engine**
-    * **Project Files:** Create a self-contained project file (e.g., using a SQLite database) to store all data for a specific engagement.
-    * **Session Management:** Allow users to create, save, load, and close testing projects.
-    * **Configuration Templates:** Enable saving and loading of project configurations (scope, authentication, etc.) for reuse.
-    * **Database Viewer:** Integrate functionality to automatically launch a GUI like `sqlitebrowser` to view the project database in real-time.
+    * **Project Files:** Create a self-contained project directory and file (e.g., using a SQLite database) to store all data for a specific engagement. Upon opening of terminal running agent.js, user should be prompted whether to open a project, or start a new project. If they start a new project, they are asked to enter a project name (this would be the project working directory). Allow users to create, save, load, and close testing projects via chat.
+    * **Configuration Templates:** Enable saving, configuring, and loading of project configurations (scope, authentication, etc.) for reuse.
+    * **Database Viewer:** Integrate functionality to automatically launch a GUI like `sqlitebrowser` to view the project database in real-time, in the same way the audit (log) window auto opens.
 
 * **Target Scoping & Site Mapping**
     * **Advanced Scope Definition:** Allow users to define in-scope and out-of-scope targets using URLs, regular expressions, and CIDR notation.
@@ -14,7 +13,7 @@
     * **Content Discovery Module:** Integrate tools for finding hidden files and directories (inspired by `dirb`/`gobuster`).
 
 * **Centralized Issue Management**
-    * **Vulnerability Database:** Log every identified vulnerability within the project file, including details like URL, parameter, severity, CWE, and evidence.
+    * **Vulnerability Database:** Agent should auto log every identified vulnerability within the project file, including details like URL, parameter, severity, CWE, and evidence.
     * **Issue Tracking:** Allow users to manually add, edit, and filter findings. Track the status of each issue (e.g., New, Confirmed, False Positive, Remediated).
     * **Evidence Locker:** Automatically capture and link the exact HTTP request/response pairs that triggered a vulnerability finding.
 

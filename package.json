@@ -1,13 +1,21 @@
 {
-  "name": "gpt5-terminal-agent",
+  "name": "cortexai",
   "version": "1.0.0",
   "type": "module",
-  "description": "GPT-5 Terminal Agent for Ubuntu",
+  "description": "CortexAI - Penetration Testing Terminal Agent with Project Management",
   "main": "agent.js",
   "dependencies": {
     "@azure/identity": "latest",
     "dotenv": "^17.2.3",
-    "openai": "latest"
+    "openai": "latest",
+    "sqlite3": "^5.1.7",
+    "inquirer": "^10.1.8",
+    "ipaddr.js": "^2.1.0",
+    "cidr-regex": "^4.0.4",
+    "axios": "^1.6.8",
+    "cheerio": "^1.0.0-rc.12",
+    "uuid": "^10.0.0",
+    "mime-types": "^2.1.35"
   },
   "scripts": {
     "start": "node agent.js"
