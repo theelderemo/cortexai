@@ -9,6 +9,8 @@ An intelligent terminal agent powered by AI for ethical security testing and vul
 
 # Table of Contents
 
+To see pictures of it in action, go to [Pictures](#pictures)
+
 [Overview](#overview)
 
 [Key Features](#key-features)
@@ -32,10 +34,6 @@ An intelligent terminal agent powered by AI for ethical security testing and vul
 [Example Workflows](#example-workflows)
 
 [Limitations & Safety Controls](#limitations--safety-controls)
-
-[Contributing](#contributing)
-
-[License](#license)
 
 
 # Overview
@@ -91,10 +89,6 @@ This agent is explicitly built for ethical, white-hat security engagements—wit
   - **Security Frameworks**: Integration with popular security testing frameworks.
   - **Reporting Tools**: Automated report generation and vulnerability documentation.
   - **CI/CD Security**: DevSecOps integration and pipeline security testing.
-
-# Project Management System
-
-CortexAI now includes a comprehensive project management system designed specifically for penetration testing engagements.
 
 ## Startup Flow
 
@@ -335,34 +329,11 @@ Always secure logs and project files after an engagement, as they may contain se
   - **Network scope is governed by you**: The agent does not automatically enumerate external networks or targets unless explicitly commanded within a permitted scope.
   - Project scope enforcement helps prevent accidental out-of-scope testing.
 
-# Contributing
+# Pictures
 
-Contributions are welcome for:
-
-  - Improving formatting and terminal UX.
-  - Adding safe scanners, parsers, or modules.
-  - Hardening logging (redaction, encryption) and permission controls.
-  - Enhancing the prompts and analysis methodology for better triage.
-  - **NEW**: Expanding project management features:
-      - Additional database schema improvements.
-      - More vulnerability detection patterns.
-      - Enhanced reporting capabilities.
-      - Integration with external tools.
-
-When contributing, ensure any added capabilities preserve ethical guardrails and include tests demonstrating non-destructive behavior.
-
-# License
-
-See LICENSE for details.
-
------
-
-## Testing the Project Management System
-
-To verify the project management system is working correctly:
-
-```bash
-node test-project-management.js
-```
-
-This will run comprehensive tests of all project management components.
+<img width="1293" height="872" alt="databasescreenshot" src="https://github.com/user-attachments/assets/9fccdaef-c7c2-4cf2-b106-d28ddcb6b31b" />
+<img width="1059" height="656" alt="auditlog" src="https://github.com/user-attachments/assets/887fc77c-0df4-41b4-b0f3-8e3f59dc84eb" />
+<img width="1920" height="1036" alt="term1" src="https://github.com/user-attachments/assets/42727129-3c56-4342-a8b5-c6bdfa78eb91" />
+<img width="1920" height="1036" alt="term2" src="https://github.com/user-attachments/assets/71ec0be3-0d43-4faa-8028-3cc5be7533a0" />
+<img width="1920" height="1036" alt="term3" src="https://github.com/user-attachments/assets/2fd18905-c6a9-482c-bb77-766652518364" />
+<img width="1920" height="1036" alt="term4" src="https://github.com/user-attachments/assets/b2040321-b52c-41b7-8821-b281a917e9a6" />
