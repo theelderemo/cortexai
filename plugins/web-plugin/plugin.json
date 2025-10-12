@@ -1,0 +1,12 @@
+{
+  "name": "web-plugin",
+  "version": "1.0.0",
+  "author": "CortexAI Team",
+  "description": "Web browsing, HTTP requests, and web search capabilities",
+  "main": "index.js",
+  "tools": [
+    "web_request",
+    "browse_website",
+    "web_search"
+  ]
+}

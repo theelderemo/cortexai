@@ -1,0 +1,13 @@
+{
+  "name": "filesystem-plugin",
+  "version": "1.0.0",
+  "author": "CortexAI Team",
+  "description": "File system operations for reading, writing, and listing files",
+  "main": "index.js",
+  "tools": [
+    "read_file",
+    "write_file",
+    "list_directory",
+    "get_cwd"
+  ]
+}

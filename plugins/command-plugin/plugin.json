@@ -1,0 +1,10 @@
+{
+  "name": "command-plugin",
+  "version": "1.0.0",
+  "author": "CortexAI Team",
+  "description": "Execute bash commands on the system",
+  "main": "index.js",
+  "tools": [
+    "execute_command"
+  ]
+}

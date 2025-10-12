@@ -1,0 +1,11 @@
+{
+  "name": "web-analysis-plugin",
+  "version": "1.0.0",
+  "author": "CortexAI Team",
+  "description": "Advanced web analysis tools for JavaScript analysis and API endpoint probing",
+  "main": "index.js",
+  "tools": [
+    "analyze_javascript",
+    "probe_api_endpoints"
+  ]
+}

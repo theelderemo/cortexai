@@ -1,5 +1,7 @@
 # Plugin System
 
+> **Note**: Core tools (filesystem, command, web operations) have been successfully migrated to plugins. See `PLUGIN_MIGRATION.md` in the project root for migration details.
+
 ## Overview
 
 The CortexAI plugin system allows you to extend the agent's capabilities by adding custom tools. Plugins are dynamically loaded at startup from the `plugins/` directory.
