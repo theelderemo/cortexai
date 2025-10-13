@@ -41,7 +41,7 @@ To see pictures of it in action, go to [Pictures](#pictures)
 
 CortexAI is an interactive, terminal-first AI agent designed to assist penetration testers, security engineers, and auditors with reconnaissance, analysis, and reporting workflows. It integrates terminal command execution, file operations, structured AI guidance, and comprehensive project management into a single platform that runs locally.
 
-This agent is explicitly built for ethical, white-hat security engagements—with features and guardrails to encourage safe, permissioned testing.
+This agent is explicitly built for ethical, white-hat security engagements.
 
 # Key Features
 
@@ -122,7 +122,7 @@ When you launch CortexAI, you will be prompted to:
   - **Evidence Locker**: HTTP request/response storage for each finding.
   - **Auto-Detection**: Built-in detection for common vulnerabilities.
 
-For complete documentation, see [PROJECT\_MANAGEMENT.md](#PROJECT_MANAGEMENT.md).
+For complete documentation, see [Documentation](https://github.com/theelderemo/cortexai/tree/main/documentation).
 
 # Terminal Formatting & UX
 
@@ -164,27 +164,53 @@ This README explicitly promotes ethical, permissioned security work. Use respons
 
 # Quick Start
 
-Clone the repo and install dependencies:
+## Installation Options
+You have two primary ways to get CortexAI up and running.
 
-```bash
+### Option 1: Clone and Run Locally (Recommended for Development)
+This method gives you direct access to the source code, which is ideal for customization and development, and honestly the most secure way.
+
+Clone the repository
+~~~Bash
 git clone https://github.com/theelderemo/cortexai.git
 cd cortexai
+~~~
+
+Install Node.js dependencies
+~~~Bash
 npm install
-```
+~~~
 
-Copy the environment template:
-
-```bash
+Configure your environment
+~~~Bash
 cp .env.example .env
-```
+nano .env # Add your Azure OpenAI keys
+~~~
 
-Edit the `.env` file with your values (see Configuration below).
-
-Start the agent:
-
-```bash
+Start the agent
+~~~Bash
 npm start
-```
+~~~
+
+### Option 2: Build Docker Image from Source
+Build your own Docker image to create a portable, self-contained environment with all dependencies and tools included. This is great for ensuring consistency across different machines.
+
+Clone the repository
+~~~Bash
+git clone https://github.com/theelderemo/cortexai.git
+cd cortexai
+~~~
+
+Build the Docker image (this may take a while!)
+~~~Bash
+sudo docker build -t cortexai:latest .
+~~~
+
+Run the container
+Note: You must pass your .env file for API keys
+~~~Bash
+docker run -it --rm -v $(pwd)/.env:/opt/cortexai/.env cortexai:latest
+~~~
 
 CortexAI will prompt you to create or open a project before starting the main interface. This ensures all your testing is properly organized and tracked.
 
