@@ -16,6 +16,11 @@ An intelligent terminal agent powered by AI for ethical security testing and vul
 
 <br>
 
+![GitHub stars](https://img.shields.io/github/stars/theelderemo/cortexai?style=social)
+![GitHub forks](https://img.shields.io/github/forks/theelderemo/cortexai?style=social)
+![GitHub issues](https://img.shields.io/github/issues/theelderemo/cortexai)
+![GitHub license](https://img.shields.io/github/license/theelderemo/cortexai)
+![Node version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
 
 </div>
 
