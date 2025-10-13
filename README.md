@@ -330,7 +330,7 @@ I welcome contributions from the security community! See [CONTRIBUTING.md](./CON
 
 **Quick Plugin Creation**:
 ```bash
-# Use our plugin generator
+# Use the plugin generator
 npm run create-plugin -- --name my-scanner
 
 # Automatically creates:
@@ -344,9 +344,9 @@ npm run create-plugin -- --name my-scanner
 
 ### 💬 **Get Help**
 - **Documentation**: [Full docs](./docs/)
-- **Discord**: [Join community](https://github.com/theelderemo/cortexai/tree/main/documentation)
-- **GitHub Issues**: [Report bugs](https://github.com/theelderemo/cortexai/issues)
-- **Security Issues**: Email chris.dickinson@mailfence (not public issues). Do NOT send code, exploits, vulnerabilities via email without making contact first to establish PGP key communication.
+- **Discord**: ***coming soon***
+- **GitHub/Bug Issues**: [Report bugs](https://github.com/theelderemo/cortexai/issues)
+- **Security Issues**: Email chris.dickinson@mailfence (not public issues). **Do NOT send code, exploits, vulnerabilities via email without making contact first to establish PGP key communication**
 
 ### ❤️ **Support Development**
 CortexAI is **free forever** for individual pentesters. Support ongoing development:
