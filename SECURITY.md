@@ -6,8 +6,8 @@ CortexAI follows semantic versioning and maintains security support for the foll
 
 | Version | Supported          | Status |
 | ------- | ------------------ | ------ |
-| 1.1.x   | :white_check_mark: | Current stable release |
-| 1.0.x   | :white_check_mark: | Security fixes only |
+| 1.3.x   | :white_check_mark: | Current stable release |
+| 1.2.x   | :white_check_mark: | Security fixes only |
 | 0.x.x   | :x:                | Development versions - not supported |
 
 **Note**: Given CortexAI's nature as a security testing tool, I prioritize rapid security updates. Only the latest minor version receives feature updates, while the previous minor version receives critical security patches for 6 months after the next minor release.
