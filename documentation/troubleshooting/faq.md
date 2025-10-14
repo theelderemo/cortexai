@@ -369,10 +369,10 @@ Currently, CortexAI is designed for interactive use. CI/CD integration features 
 
 ### Where can I find more documentation?
 
-- **Troubleshooting Guide**: [help/troubleshooting.md](troubleshooting.md)
+- **Troubleshooting Guide**: [common-issues.md](common-issues.md)
 - **Configuration Reference**: [reference/configuration-reference.md](../reference/configuration-reference.md)
 - **API Documentation**: [development/api-reference.md](../development/api-reference.md)
-- **Best Practices**: [workflows/best-practices.md](../workflows/best-practices.md)
+- **Best Practices**: [best-practices.md](../user-guide/best-practices.md)
 
 ### How do I report bugs or request features?
 

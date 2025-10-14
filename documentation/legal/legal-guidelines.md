@@ -491,7 +491,7 @@ Related documentation:
 
 - **Ethical Usage**: [Ethical Usage Guidelines](ethical-usage.md)
 - **Compliance**: [Compliance Guide](compliance.md)
-- **Best Practices**: [Best Practices](../workflows/best-practices.md)
+- **Best Practices**: [Best Practices](../user-guide/best-practices.md)
 
 ## Getting Help
 

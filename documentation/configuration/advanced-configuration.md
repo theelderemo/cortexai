@@ -712,7 +712,7 @@ After advanced configuration:
 For advanced configuration support:
 
 - **Configuration Reference**: [Configuration Reference](../reference/configuration-reference.md)
-- **Troubleshooting**: [Troubleshooting Guide](../help/troubleshooting.md)
+- **Troubleshooting**: [Troubleshooting Guide](../troubleshooting/common-issues.md)
 - **GitHub Issues**: [Report problems](https://github.com/theelderemo/cortexai/issues)
 
 ---

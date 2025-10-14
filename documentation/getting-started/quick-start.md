@@ -170,12 +170,12 @@ Now that CortexAI is running:
 1. **Read the [User Onboarding Guide](user-onboarding.md)** for comprehensive setup
 2. **Review [Legal Guidelines](../legal/legal-guidelines.md)** for responsible use
 3. **Explore [Project Management](../project-management/overview.md)** features
-4. **Try [Common Workflows](../workflows/common-workflows.md)**
+4. **Try [Common Workflows](../user-guide/common-workflows.md)**
 
 ## Need Help?
 
-- **FAQ**: [help/faq.md](../help/faq.md)
-- **Troubleshooting**: [help/troubleshooting.md](../help/troubleshooting.md)
+- **FAQ**: [faq.md](../troubleshooting/faq.md)
+- **Troubleshooting**: [common-issues.md](../troubleshooting/common-issues.md)
 - **GitHub Issues**: [Report problems](https://github.com/theelderemo/cortexai/issues)
 
 ## Safety Reminder

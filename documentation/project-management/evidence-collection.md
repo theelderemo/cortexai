@@ -521,15 +521,15 @@ shred -u sensitive-evidence.txt
 Related documentation:
 
 - **Vulnerability Tracking**: [Vulnerability Tracking Guide](vulnerability-tracking.md)
-- **Reporting**: [Best Practices](../workflows/best-practices.md)
+- **Reporting**: [Best Practices](../user-guide/best-practices.md)
 - **Database Schema**: [Database Schema](../reference/database-schema.md)
 
 ## Getting Help
 
 For evidence collection assistance:
 
-- **FAQ**: [Frequently Asked Questions](../help/faq.md)
-- **Best Practices**: [Best Practices Guide](../workflows/best-practices.md)
+- **FAQ**: [Frequently Asked Questions](../troubleshooting/faq.md)
+- **Best Practices**: [Best Practices Guide](../user-guide/best-practices.md)
 - **GitHub**: [Report Issues](https://github.com/theelderemo/cortexai/issues)
 
 ---

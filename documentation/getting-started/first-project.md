@@ -525,8 +525,8 @@ Now that you've created your first project:
 
 1. **Learn Project Management**: [Project Management Overview](../project-management/overview.md)
 2. **Explore Testing Techniques**: [Security Testing Guides](../security-testing/web-application.md)
-3. **Try Common Workflows**: [Common Workflows](../workflows/common-workflows.md)
-4. **Review Best Practices**: [Best Practices](../workflows/best-practices.md)
+3. **Try Common Workflows**: [Common Workflows](../user-guide/common-workflows.md)
+4. **Review Best Practices**: [Best Practices](../user-guide/best-practices.md)
 
 ## Example Project Scenarios
 
@@ -561,8 +561,8 @@ Scope: https://client-abc.com/* (excluding /admin/prod/*)
 
 If you need assistance with your first project:
 
-- **FAQ**: [help/faq.md](../help/faq.md)
-- **Troubleshooting**: [help/troubleshooting.md](../help/troubleshooting.md)
+- **FAQ**: [faq.md](../troubleshooting/faq.md)
+- **Troubleshooting**: [common-issues.md](../troubleshooting/common-issues.md)
 - **Project Management**: [project-management/overview.md](../project-management/overview.md)
 - **GitHub Issues**: [Report problems](https://github.com/theelderemo/cortexai/issues)
 

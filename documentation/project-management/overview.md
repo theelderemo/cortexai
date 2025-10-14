@@ -489,8 +489,8 @@ Learn more about specific project features:
 
 For project management assistance:
 
-- **FAQ**: [Frequently Asked Questions](../help/faq.md)
-- **Troubleshooting**: [Troubleshooting Guide](../help/troubleshooting.md)
+- **FAQ**: [Frequently Asked Questions](../troubleshooting/faq.md)
+- **Troubleshooting**: [Troubleshooting Guide](../troubleshooting/common-issues.md)
 - **Database Reference**: [Database Schema](../reference/database-schema.md)
 
 ---

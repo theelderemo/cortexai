@@ -455,7 +455,7 @@ Related documentation:
 
 - **Legal Guidelines**: [Legal Guidelines](legal-guidelines.md)
 - **Compliance**: [Compliance Guide](compliance.md)
-- **Best Practices**: [Best Practices](../workflows/best-practices.md)
+- **Best Practices**: [Best Practices](../user-guide/best-practices.md)
 
 ## Getting Help
 

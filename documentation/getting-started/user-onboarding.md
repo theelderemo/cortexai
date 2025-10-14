@@ -264,8 +264,8 @@ CortexAI understands natural language. Try these examples:
 
 ### Documentation
 
-- **FAQ**: [help/faq.md](../help/faq.md)
-- **Troubleshooting**: [help/troubleshooting.md](../help/troubleshooting.md)
+- **FAQ**: [faq.md](../troubleshooting/faq.md)
+- **Troubleshooting**: [common-issues.md](../troubleshooting/common-issues.md)
 - **Advanced Features**: [Project Management Documentation](../project-management/overview.md)
 
 ### Community Support
