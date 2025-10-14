@@ -12,7 +12,7 @@
 *Self-reasoning. Self-explaining. Self-improving.*
 An intelligent terminal agent powered by AI for ethical security testing and vulnerability analysis with integrated project management, scope tracking, and evidence collection. 
 
-> For detailed documentation, see [documentation](https://github.com/theelderemo/cortexai/tree/main/documentation)
+For detailed documentation, see [documentation](https://github.com/theelderemo/cortexai/tree/main/documentation)
 
 <br>
 
@@ -23,6 +23,9 @@ An intelligent terminal agent powered by AI for ethical security testing and vul
 ![Node version](https://img.shields.io/badge/node-%3E%3D18.0.0-brightgreen)
 
 </div>
+
+> [!TIP]
+> There is now an official [CortexAI Plugin Repo](https://github.com/theelderemo/cortexai-plugins) for a community first platform. Go check it out!  
 
 ## What is CortexAI?
 
