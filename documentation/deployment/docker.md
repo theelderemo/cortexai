@@ -1,4 +1,4 @@
-# CortexOS Docker Documentation
+# CortexOS Docker Deployment Guide
 
 ## Overview
 
@@ -69,7 +69,9 @@ CortexOS is a comprehensive penetration testing Docker image that bundles Cortex
 - At least 8GB RAM available
 - 20GB disk space
 
-### Using Docker Compose (Recommended)
+### Installation
+
+#### Option 1: Using Docker Compose (Recommended)
 
 1. **Clone the repository:**
 ```bash
@@ -98,7 +100,7 @@ docker-compose exec cortexos /bin/bash
 cortexai
 ```
 
-### Using Docker CLI
+#### Option 2: Using Docker CLI
 
 1. **Build the image:**
 ```bash
@@ -122,6 +124,35 @@ docker run -it --rm \
   cortexos:latest \
   cortexai
 ```
+
+#### Option 3: Build from Source
+
+```bash
+git clone https://github.com/theelderemo/cortexai.git
+cd cortexai
+./build-docker.sh --latest
+docker run -it --rm cortexos:latest
+```
+
+## First Steps
+
+Once inside the container:
+
+1. **Launch CortexAI:**
+   ```bash
+   cortexai
+   ```
+
+2. **Create your first project:**
+   - Choose "Create new project"
+   - Enter project details (name, target, description)
+   - Set up scope rules
+   - Start testing!
+
+3. **Check available tools:**
+   ```bash
+   check-tools
+   ```
 
 ## Common Usage Patterns
 
@@ -168,6 +199,87 @@ docker run -it --rm \
 # Inside: Start Burp Suite or ZAP on port 8080
 ```
 
+## Common Commands
+
+### Inside Container
+```bash
+cortexai              # Start CortexAI agent
+nmap -sV target.com   # Port scan
+sqlmap -u URL         # SQL injection test
+nikto -h target.com   # Web vulnerability scan
+gobuster dir -u URL   # Directory brute force
+metasploit            # Launch Metasploit
+```
+
+### Managing Container
+```bash
+# Start container
+docker-compose up -d
+
+# Access container shell
+docker-compose exec cortexos /bin/bash
+
+# Stop container
+docker-compose down
+
+# View logs
+docker-compose logs -f
+```
+
+### Helpful Commands Inside Container
+
+#### Check Installed Tools
+```bash
+check-tools
+```
+
+#### Quick Tool Access
+```bash
+cortex          # Launch CortexAI
+nmap -sV target.com
+sqlmap -u "http://target.com?id=1"
+nikto -h target.com
+gobuster dir -u http://target.com -w /usr/share/wordlists/dirb/common.txt
+```
+
+#### Common Aliases
+```bash
+cortex          # CortexAI
+scan            # nmap -sV -sC
+metasploit      # msfconsole -q
+myip            # Get your public IP
+ports           # Show listening ports
+```
+
+## Example Workflow
+
+1. **Start a penetration test:**
+   ```bash
+   cortexai
+   # Create new project
+   # Define scope: target.com
+   # Start reconnaissance
+   ```
+
+2. **Run initial scans:**
+   ```bash
+   nmap -sV -sC target.com
+   whatweb target.com
+   ```
+
+3. **Web vulnerability scanning:**
+   ```bash
+   nikto -h https://target.com
+   gobuster dir -u https://target.com -w /usr/share/wordlists/dirb/common.txt
+   ```
+
+4. **Ask CortexAI for analysis:**
+   ```
+   "Analyze the nmap results and suggest next steps"
+   "Check for SQL injection in the login form"
+   "Generate a report of findings"
+   ```
+
 ## Volume Mounts
 
 The following directories can be mounted for persistence:
@@ -196,31 +308,6 @@ OPENAI_API_KEY=your_key
 CORTEX_ENABLE_FORMATTING=true
 CORTEX_AUTO_PROJECT=false
 CORTEX_DEBUG=false
-```
-
-## Helpful Commands Inside Container
-
-### Check Installed Tools
-```bash
-check-tools
-```
-
-### Quick Tool Access
-```bash
-cortex          # Launch CortexAI
-nmap -sV target.com
-sqlmap -u "http://target.com?id=1"
-nikto -h target.com
-gobuster dir -u http://target.com -w /usr/share/wordlists/dirb/common.txt
-```
-
-### Common Aliases
-```bash
-cortex          # CortexAI
-scan            # nmap -sV -sC
-metasploit      # msfconsole -q
-myip            # Get your public IP
-ports           # Show listening ports
 ```
 
 ## Building from Source
@@ -252,10 +339,16 @@ docker build -t cortexos:latest -f Dockerfile .
 ```bash
 # Check Docker logs
 docker logs cortexos
+docker-compose logs cortexos
 
 # Verify health status
 docker inspect cortexos | grep -A 10 Health
 ```
+
+### API Key Issues
+- Verify `.env` file exists and has correct keys
+- Check API endpoint and deployment name
+- Ensure API key is valid and not expired
 
 ### Permission Issues
 ```bash
@@ -275,6 +368,12 @@ docker run --network=host -it cortexos:latest
 apt-get update
 
 # Install additional tool
+apt-get install -y tool-name
+```
+
+### Tool Not Found
+```bash
+apt-get update
 apt-get install -y tool-name
 ```
 
@@ -371,15 +470,19 @@ jobs:
         run: ./build-docker.sh --latest
 ```
 
-## Support and Contributing
+## Need Help?
 
+- **In-container help:** `cortexai --help`
+- **Tool verification:** `check-tools`
+- **Documentation:** `/opt/cortexai/documentation/`
 - **Issues:** https://github.com/theelderemo/cortexai/issues
-- **Documentation:** /opt/cortexai/documentation/
 - **Contributing:** See CONTRIBUTING.md
 
 ## Legal Notice
 
-CortexOS is designed for **authorized security testing only**. Always obtain proper authorization before testing any systems. See [Legal Guidelines](documentation/legal/legal-guidelines.md) for more information.
+CortexOS is designed for **authorized security testing only**. Always obtain proper authorization before testing any systems. See [Legal Guidelines](../legal/legal-guidelines.md) for more information.
+
+**Remember: Only test systems you have explicit permission to test.**
 
 ## License
 
@@ -388,4 +491,7 @@ CortexOS and CortexAI are licensed under the MIT License. See LICENSE file for d
 ---
 
 **CortexOS - Comprehensive Penetration Testing Operating System**
-*Powered by CortexAI v1.2.0*
+
+*Powered by CortexAI*
+
+**Happy Ethical Hacking! 🛡️**
