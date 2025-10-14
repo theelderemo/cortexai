@@ -26,7 +26,8 @@ An intelligent terminal agent powered by AI for ethical security testing and vul
 
 ## What is CortexAI?
 
-CortexAI is **not another pentesting tool suite**—it's an autonomous AI agent that conducts authorized security assessments the way a senior security consultant would: by reasoning about objectives, orchestrating the right tools, explaining its decisions, and continuously improving its approach.
+CortexAI is **not another pentesting tool suite** 
+It's an autonomous AI agent that conducts authorized security assessments the way a senior security consultant would: by reasoning about objectives, orchestrating the right tools, explaining its decisions, and continuously improving its approach.
 
 Traditional tools like Burp Suite and OWASP ZAP require you to manually decide which scans to run, interpret results, and document findings. **CortexAI is different**:
 
@@ -35,11 +36,11 @@ You: "Run an initial security assessment on this web app"
 ```
 
 CortexAI: 
-  ✓ Reasoning: Breaking down into content discovery, technology fingerprinting, and structure analysis
-  ✓ Executing: discover_content, web_request, browse_website (3 tools orchestrated)
-  ✓ Analyzing: Found CORS misconfiguration, missing security headers, exposed login form
-  ✓ Logging: 3 medium-severity vulnerabilities stored to project database
-  ✓ Recommending: Next steps include JavaScript analysis and XSS testing
+ - ✓ Reasoning: Breaking down into content discovery, technology fingerprinting, and structure analysis
+ -  ✓ Executing: discover_content, web_request, browse_website (3 tools orchestrated)
+ -  ✓ Analyzing: Found CORS misconfiguration, missing security headers, exposed login form
+ -  ✓ Logging: 3 medium-severity vulnerabilities stored to project database
+ -  ✓ Recommending: Next steps include JavaScript analysis and XSS testing
 
 **This is agentic AI**—autonomous planning, multi-tool orchestration, contextual reasoning, and transparent decision-making in a single platform.
 
