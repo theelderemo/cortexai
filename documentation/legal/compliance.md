@@ -460,7 +460,7 @@ Related documentation:
 
 - **Legal Guidelines**: [Legal Guidelines](legal-guidelines.md)
 - **Ethical Usage**: [Ethical Usage](ethical-usage.md)
-- **Best Practices**: [Best Practices](../workflows/best-practices.md)
+- **Best Practices**: [Best Practices](../user-guide/best-practices.md)
 
 ## Getting Help
 

@@ -494,8 +494,8 @@ After asset discovery:
 
 For asset discovery assistance:
 
-- **FAQ**: [Frequently Asked Questions](../help/faq.md)
-- **Troubleshooting**: [Troubleshooting Guide](../help/troubleshooting.md)
+- **FAQ**: [Frequently Asked Questions](../troubleshooting/faq.md)
+- **Troubleshooting**: [Troubleshooting Guide](../troubleshooting/common-issues.md)
 - **Tools**: [Supported Tools](../tools/supported-tools.md)
 
 ---

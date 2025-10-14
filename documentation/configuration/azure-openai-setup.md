@@ -455,7 +455,7 @@ After Azure OpenAI setup:
 For Azure OpenAI issues:
 
 - **Azure Support**: Submit ticket through Azure Portal
-- **CortexAI Configuration**: [Troubleshooting](../help/troubleshooting.md)
+- **CortexAI Configuration**: [Troubleshooting](../troubleshooting/common-issues.md)
 - **Community**: [GitHub Discussions](https://github.com/theelderemo/cortexai/discussions)
 
 ---

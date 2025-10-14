@@ -423,8 +423,8 @@ After successful installation:
 
 If you encounter installation issues:
 
-- Check [Troubleshooting Guide](../help/troubleshooting.md)
-- Review [FAQ](../help/faq.md)
+- Check [Troubleshooting Guide](../troubleshooting/common-issues.md)
+- Review [FAQ](../troubleshooting/faq.md)
 - Open an issue on [GitHub](https://github.com/theelderemo/cortexai/issues)
 
 ---

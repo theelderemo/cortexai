@@ -525,8 +525,8 @@ After configuring your environment:
 
 For configuration assistance:
 
-- **FAQ**: [help/faq.md](../help/faq.md)
-- **Troubleshooting**: [help/troubleshooting.md](../help/troubleshooting.md)
+- **FAQ**: [faq.md](../troubleshooting/faq.md)
+- **Troubleshooting**: [common-issues.md](../troubleshooting/common-issues.md)
 - **GitHub Issues**: [Report problems](https://github.com/theelderemo/cortexai/issues)
 
 ---

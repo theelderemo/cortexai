@@ -525,8 +525,8 @@ Related documentation:
 
 For scope management assistance:
 
-- **FAQ**: [Frequently Asked Questions](../help/faq.md)
-- **Best Practices**: [Best Practices Guide](../workflows/best-practices.md)
+- **FAQ**: [Frequently Asked Questions](../troubleshooting/faq.md)
+- **Best Practices**: [Best Practices Guide](../user-guide/best-practices.md)
 - **GitHub**: [Report Issues](https://github.com/theelderemo/cortexai/issues)
 
 ---
