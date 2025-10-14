@@ -517,7 +517,6 @@ To continue work on an existing project:
 - Archive old findings
 - Limit evidence storage depth
 - Split into multiple projects
-- Optimize database: See [Performance Optimization](../help/performance-optimization.md)
 
 ## Next Steps
 

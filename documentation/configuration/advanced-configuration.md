@@ -703,9 +703,9 @@ npm start -- --show-config-sources
 
 After advanced configuration:
 
-1. **Performance Tuning**: [Performance Optimization](../help/performance-optimization.md)
-2. **Security Hardening**: [Legal Guidelines](../legal/legal-guidelines.md)
-3. **Integration**: [Tool Configuration](../tools/tool-configuration.md)
+1. **Security Hardening**: [Legal Guidelines](../legal/legal-guidelines.md)
+2. **Plugin Development**: [Plugin System](../development/plugin-system.md)
+3. **Project Management**: [Project Overview](../project-management/overview.md)
 
 ## Getting Help
 

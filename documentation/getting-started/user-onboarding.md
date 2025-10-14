@@ -278,9 +278,9 @@ CortexAI understands natural language. Try these examples:
 
 ### Explore Advanced Features
 
-1. **Custom Tools**: [tools/custom-scripts.md](../tools/custom-scripts.md)
-2. **Advanced Workflows**: [workflows/advanced-techniques.md](../workflows/advanced-techniques.md)
-3. **API Integration**: [development/api-reference.md](../development/api-reference.md)
+1. **Plugin Development**: [Plugin System](../development/plugin-system.md)
+2. **Best Practices**: [Best Practices Guide](../user-guide/best-practices.md)
+3. **Common Workflows**: [Common Workflows](../user-guide/common-workflows.md)
 
 ### Expand Your Knowledge
 
