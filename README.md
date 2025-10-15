@@ -377,6 +377,9 @@ CortexAI is **free forever** for individual pentesters. Support ongoing developm
 - Compliance dashboards and managed AI backend
 - Priority support and SLA guarantees
 
+> [!IMPORTANT]
+> This software is licensed under the MIT License, which requires the inclusion of the original copyright notice in all substantial copies of the software. This is here for transparency. To aid in verifying license compliance, the source code contains various digital watermarks.
+
 ## Acknowledgments
 
 Built with:
