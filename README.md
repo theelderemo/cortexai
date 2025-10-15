@@ -1,4 +1,4 @@
-# <img align="left" width="300" height="300" alt="cortexai-logo" src="https://github.com/user-attachments/assets/bfa94ca1-4ca8-4f9d-b9f6-520ceac7d4b6" /> 
+<img align="left" width="300" height="300" alt="cortexai-logo" src="https://github.com/user-attachments/assets/bfa94ca1-4ca8-4f9d-b9f6-520ceac7d4b6" /> 
 <div id="user-content-toc">
   <ul align="center" style="list-style: none;">
     <summary>
@@ -16,6 +16,7 @@ For detailed documentation, see [documentation](https://github.com/theelderemo/c
 
 <br>
 
+[![Docs are updated](https://img.shields.io/badge/docs-updated-green?color=blue)](https://github.com/theelderemo/cortexai/tree/main/documentation)
 ![GitHub stars](https://img.shields.io/github/stars/theelderemo/cortexai?style=social)
 ![GitHub forks](https://img.shields.io/github/forks/theelderemo/cortexai?style=social)
 ![GitHub issues](https://img.shields.io/github/issues/theelderemo/cortexai)
