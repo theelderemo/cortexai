@@ -18,6 +18,7 @@ import { URL } from 'url';
 import puppeteer from 'puppeteer';
 import { exec } from "child_process";
 import { promisify } from "util";
+import zlib from 'zlib';
 
 const execAsync = promisify(exec);
 
@@ -94,19 +95,37 @@ async function webRequestHandler(args) {
       };
 
       const req = httpModule.request(options, (res) => {
-        let responseData = '';
+        const chunks = [];
         
         res.on('data', (chunk) => {
-          responseData += chunk;
+          chunks.push(chunk);
         });
 
         res.on('end', () => {
+          let responseData = Buffer.concat(chunks);
+          
+          // Handle gzip/deflate compression
+          const encoding = res.headers['content-encoding'];
+          try {
+            if (encoding === 'gzip') {
+              responseData = zlib.gunzipSync(responseData);
+            } else if (encoding === 'deflate') {
+              responseData = zlib.inflateSync(responseData);
+            }
+          } catch (decompressError) {
+            // If decompression fails, use raw data
+            console.error('Decompression failed:', decompressError.message);
+          }
+          
+          // Convert to string
+          const body = responseData.toString('utf-8');
+          
           const result = {
             success: true,
             status_code: res.statusCode,
             status_message: res.statusMessage,
             headers: res.headers,
-            body: responseData,
+            body: body,
             url: url,
             method: method,
             redirected: false

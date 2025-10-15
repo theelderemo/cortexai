@@ -1,0 +1,81 @@
+# Docker Compose Configuration for CortexOS
+# Provides easy deployment with volume persistence
+
+version: '3.8'
+
+services:
+  cortexos:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cortexos:latest
+    container_name: cortexos
+    hostname: cortexos
+    
+    # Privileged mode for full security testing capabilities
+    privileged: true
+    
+    # Network mode for direct network access
+    network_mode: bridge
+    
+    # Keep container running
+    stdin_open: true
+    tty: true
+    
+    # Environment variables
+    environment:
+      - CORTEX_ENABLE_FORMATTING=true
+      - CORTEX_AUTO_PROJECT=false
+      - CORTEX_DEBUG=false
+    
+    # Volume mounts for persistence
+    volumes:
+      # Persist CortexAI data
+      - cortexai-data:/root/.cortexai
+      # Persist workspace
+      - ./workspace:/opt/workspace
+      # Persist reports
+      - ./reports:/opt/reports
+      # Mount custom wordlists
+      - ./custom-wordlists:/opt/wordlists/custom
+      # Mount .env file (create from .env.template)
+      - ./.env:/opt/cortexai/.env:ro
+    
+    # Port mappings for common services
+    ports:
+      - "8080:8080"   # Web proxy
+      - "8081:8081"   # Alternative web port
+      - "3000:3000"   # Development server
+      - "4444:4444"   # Metasploit handler
+      - "5555:5555"   # Metasploit handler alternative
+      - "8000:8000"   # Python HTTP server
+      - "9090:9090"   # ZAP proxy
+    
+    # Resource limits (adjust based on your system)
+    deploy:
+      resources:
+        limits:
+          cpus: '4'
+          memory: 8G
+        reservations:
+          cpus: '2'
+          memory: 4G
+    
+    # Restart policy
+    restart: unless-stopped
+    
+    # Health check
+    healthcheck:
+      test: ["/usr/local/bin/healthcheck.sh"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  cortexai-data:
+    driver: local
+
+networks:
+  default:
+    driver: bridge

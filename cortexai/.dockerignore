@@ -1,0 +1,66 @@
+# .dockerignore for CortexOS
+# Exclude unnecessary files from Docker build context
+
+# Node modules (will be installed in container)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Environment files (sensitive data)
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+*.crt
+
+# Test files
+test-*.sh
+test-*.js
+*.test.js
+*.spec.js
+coverage/
+
+# Git files
+.git/
+.gitignore
+.gitattributes
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Project specific
+.cortexai/
+projects/
+logs/
+*.log
+
+# Build artifacts
+dist/
+build/
+*.tar.gz
+*.zip
+
+# Documentation source (keep processed docs)
+*.draft.md
+docs-source/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
+
+# OS files
+Thumbs.db
+.DS_Store
+
+# Docker files
+docker-compose.override.yml
+.dockerignore
+Dockerfile.dev
