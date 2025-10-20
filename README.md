@@ -118,6 +118,55 @@ Configuration
 
 ### Configuration
 
+## Configuring Limited Sudo Access (Optional)
+
+CortexAI operates with the privileges of the user running it. For certain tasks, like installing necessary tools or performing specific types of network scans, it might require elevated (`sudo`) privileges. To avoid needing to enter your password repeatedly and to limit the agent's root access, you can configure passwordless `sudo` for *specific* commands only.
+
+> [!WARNING]
+>  **Critical Warning:** Modifying sudo permissions is a sensitive operation. Incorrect configuration can compromise your system's security or lock you out. **Never** edit /etc/sudoers directly. Always use the visudo command, which performs syntax checks before saving:
+
+```bash
+sudo visudo
+```
+Granting Specific Passwordless Permissions
+Identify Required Commands: Determine the exact commands CortexAI might need sudo for (e.g., systemctl start <service>, specific nmap options). Be as specific as possible.
+
+Edit Sudoers: Add a line in visudo for the user running CortexAI (replace cortexuser with the actual username YOU CREATE).
+
+Allow cortexuser to run specific commands without a password for CortexAI
+```
+cortexuser ALL=(ALL) NOPASSWD: /usr/bin/specific/command1, /usr/bin/another/command --with-options *
+cortexuser: The username running CortexAI.
+```
+
+ALL=(ALL): Allows running on this host, usually as root.
+
+NOPASSWD:: Enables passwordless execution for the listed commands.
+
+/usr/bin/specific/command1: Use the full path to the command. You can find this using which <command>.
+
+Separate multiple commands with commas. You can use wildcards (*) but do so with extreme caution.
+
+Restricting Dangerous Commands
+You can also explicitly deny the user from running certain dangerous commands with sudo, even if broader permissions might otherwise allow them. Add these after the NOPASSWD line:
+
+Deny dangerous commands for cortexuser even with sudo
+```
+cortexuser ALL=(ALL) !/usr/bin/rm *, !/usr/sbin/shutdown, !/usr/sbin/reboot, !/usr/bin/passwd, !/usr/bin/cat /path/to/your/secure/files/*
+```
+The ! negates the permission for the specified command.
+
+Important Note on Tool Installation
+System package managers (apt, yum, dnf, etc.) require root privileges. Granting passwordless sudo access to commands like apt install * is discouraged as it effectively grants full root access.
+
+Safer alternatives for tool installation:
+
+Pre-install Tools: Manually install all required security tools using your own sudo access before running CortexAI.
+
+User-Level Installs: Instruct CortexAI to install tools in the user's home directory if the tool supports it (e.g., pip install --user, Go tools).
+
+Use Docker: Run CortexAI within the provided CortexOS Docker container. Inside the container, the agent can safely install tools using the container's package manager without affecting your host system or requiring your host sudo password. This is the most secure and flexible approach.
+
 Create a `.env` file with your AI provider credentials:
 
 ```env
@@ -235,18 +284,18 @@ Plugins auto-load at startup. The AI agent automatically discovers and uses new 
 - [x] OWASP/CWE vulnerability classification
 
 ### **Phase 2: Cross-Platform Desktop GUI** (In Progress)
-- [ ] Electron-based desktop app (Linux, Windows, macOS)
-- [ ] Visual project manager and scope editor
-- [ ] Integrated database viewer with charts
-- [ ] Real-time agent monitoring dashboard
+- [x] Electron-based desktop app (Linux, Windows, macOS)
+- [x] Visual project manager and scope editor
+- [x] Integrated database viewer
+- [x] Real-time agent monitoring dashboard
 - [ ] Export reports (PDF, Markdown, JSON, HTML)
 
 ### **Phase 3: API-First Architecture**
 - [ ] Node.js API server (Express/Fastify)
-- [ ] PostgreSQL database for multi-user support
+- [x] PostgreSQL database for multi-user support
 - [ ] RESTful API for all core functions
 - [ ] AI provider abstraction (Azure, OpenAI, Anthropic, Ollama, Gemini)
-- [ ] User authentication and API key management
+- [x] User authentication and API key management
 
 ### **Phase 4: Enterprise Features** (Proprietary)
 - [ ] Intercepting HTTP/HTTPS proxy (Burp Suite equivalent)
@@ -257,14 +306,14 @@ Plugins auto-load at startup. The AI agent automatically discovers and uses new 
 - [ ] Compliance dashboards (PCI DSS, HIPAA, SOC 2)
 
 ### **Phase 5: Autonomous Agent Evolution**
-- [ ] Multi-step goal planning with ReAct prompting
+- [x] Multi-step goal planning with ReAct prompting
 - [ ] Attack path graph modeling (Neo4j integration)
 - [ ] Ethical governor with mandatory approval checkpoints
-- [ ] Autonomous exploitation with human-in-the-loop
-- [ ] Self-correction and adaptive replanning
+- [x] Autonomous exploitation with human-in-the-loop
+- [x] Self-correction and adaptive replanning
 
 ### **Phase 6: Ecosystem & SaaS**
-- [ ] CortexAI Marketplace for third-party plugins
+- [x] CortexAI Marketplace for third-party plugins
 - [ ] Managed SaaS platform (multi-tenant cloud)
 - [ ] Bug bounty platform integrations (HackerOne, Bugcrowd)
 - [ ] Certification program (CCRTO: CortexAI Certified Red Team Operator)
