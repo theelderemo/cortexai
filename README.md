@@ -25,8 +25,11 @@ For detailed documentation, see [documentation](https://github.com/theelderemo/c
 
 </div>
 
+# DEV UPDATE:
+I have a new version of the agent loop I'll be committing soon. It uses loop logic, has bigger base tool calling, and stricter rules based on project scope. 
+
 > [!TIP]
-> There is now an official [CortexAI Plugin Repo](https://github.com/theelderemo/cortexai-plugins) for a community first platform. Go check it out!  
+> There is now an official [CortexAI Plugin Repo](https://github.com/theelderemo/cortexai-plugins) for a community first platform. Go check it out!
 
 ## What is CortexAI?
 
